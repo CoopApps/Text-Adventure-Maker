@@ -23,6 +23,9 @@ fn main() {
             builder::ui::panels::render_active_panel,
             builder::ui::toolbar::handle_toolbar_clicks,
             viewer::code_display::render_code_viewer,
+            handle_keyboard_shortcuts,
+        ))
+        .add_systems(Update, (
             // Location editor systems
             builder::editors::location_editor::render_location_editor,
             builder::editors::location_editor::handle_location_node_clicks,
@@ -30,11 +33,19 @@ fn main() {
             builder::editors::location_editor::handle_location_drag,
             builder::editors::location_editor::handle_connection_creation,
             builder::editors::location_editor::render_connection_preview,
+        ))
+        .add_systems(Update, (
             // Object editor systems
             builder::editors::object_editor::render_object_sidebar,
             builder::editors::object_editor::handle_object_card_clicks,
             builder::editors::object_editor::handle_add_object_button,
-            handle_keyboard_shortcuts,
+            // Rule editor systems
+            builder::editors::rule_editor::render_rule_sidebar,
+            builder::editors::rule_editor::render_rule_detail_editor,
+            builder::editors::rule_editor::handle_rule_card_clicks,
+            builder::editors::rule_editor::handle_add_rule_button,
+            builder::editors::rule_editor::handle_add_condition_button,
+            builder::editors::rule_editor::handle_add_action_button,
         ))
         .run();
 }
