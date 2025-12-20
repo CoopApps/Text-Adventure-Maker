@@ -93,15 +93,55 @@ fn handle_keyboard_shortcuts(
         info!("Preview mode: {}", state.show_preview);
     }
 
-    // Ctrl+S = Save project
+    // Ctrl+S = Save project to JSON
     if keys.pressed(KeyCode::ControlLeft) && keys.just_pressed(KeyCode::S) {
-        info!("Save requested (TODO: implement)");
-        // TODO: Save project to JSON
+        // Create exports directory if it doesn't exist
+        let _ = std::fs::create_dir_all("./exports");
+
+        // Generate filename from game title
+        let filename = state.current_game.title.replace(' ', "_").to_lowercase();
+        let filepath = format!("./exports/{}.json", filename);
+
+        // Serialize and save
+        match serde_json::to_string_pretty(&state.current_game) {
+            Ok(json) => {
+                match std::fs::write(&filepath, json) {
+                    Ok(_) => {
+                        state.current_file_path = Some(filepath.clone());
+                        state.unsaved_changes = false;
+                        info!("✅ Project saved to: {}", filepath);
+                    }
+                    Err(e) => {
+                        error!("❌ Failed to write JSON file: {}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                error!("❌ Failed to serialize game to JSON: {}", e);
+            }
+        }
     }
 
-    // Ctrl+E = Export to DAAD
+    // Ctrl+E = Export to DAAD source code
     if keys.pressed(KeyCode::ControlLeft) && keys.just_pressed(KeyCode::E) {
-        info!("Export requested (TODO: implement)");
-        // TODO: Export to .DDB file
+        // Create exports directory if it doesn't exist
+        let _ = std::fs::create_dir_all("./exports");
+
+        // Generate filename from game title
+        let filename = state.current_game.title.replace(' ', "_").to_lowercase();
+        let filepath = format!("./exports/{}.sce", filename);
+
+        // Generate DAAD source code
+        let daad_code = daad::codegen::DaadCodeGenerator::generate(&state.current_game);
+
+        // Write to file
+        match std::fs::write(&filepath, daad_code) {
+            Ok(_) => {
+                info!("✅ DAAD source exported to: {}", filepath);
+            }
+            Err(e) => {
+                error!("❌ Failed to write DAAD source file: {}", e);
+            }
+        }
     }
 }
