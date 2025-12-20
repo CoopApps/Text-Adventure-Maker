@@ -21,7 +21,15 @@ fn main() {
             builder::ui::main_menu::render_menu,
             builder::ui::toolbar::render_toolbar,
             builder::ui::panels::render_active_panel,
+            builder::ui::toolbar::handle_toolbar_clicks,
             viewer::code_display::render_code_viewer,
+            // Location editor systems
+            builder::editors::location_editor::render_location_editor,
+            builder::editors::location_editor::handle_location_node_clicks,
+            builder::editors::location_editor::handle_add_location_button,
+            builder::editors::location_editor::handle_location_drag,
+            builder::editors::location_editor::handle_connection_creation,
+            builder::editors::location_editor::render_connection_preview,
             handle_keyboard_shortcuts,
         ))
         .run();
