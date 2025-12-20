@@ -1,6 +1,7 @@
 // Game preview/interpreter - play the game in realtime
 
 pub mod interpreter;
+pub mod preview_ui;
 
-// TODO: Implement DAAD interpreter for live preview
-// For now, this is a placeholder
+pub use interpreter::GameRuntime;
+pub use preview_ui::*;

@@ -56,6 +56,13 @@ fn main() {
             builder::editors::property_forms::handle_add_flag_button,
             builder::editors::property_forms::handle_add_message_button,
         ))
+        .add_systems(Update, (
+            // Preview/playtest systems
+            preview::preview_ui::render_preview_panel,
+            preview::preview_ui::handle_start_game_button,
+            preview::preview_ui::handle_preview_command_buttons,
+            preview::preview_ui::handle_reset_game_button,
+        ))
         .run();
 }
 
