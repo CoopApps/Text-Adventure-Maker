@@ -47,6 +47,15 @@ fn main() {
             builder::editors::rule_editor::handle_add_condition_button,
             builder::editors::rule_editor::handle_add_action_button,
         ))
+        .add_systems(Update, (
+            // Flags and messages editor systems
+            builder::editors::property_forms::render_flags_editor,
+            builder::editors::property_forms::render_messages_editor,
+            builder::editors::property_forms::handle_flag_card_clicks,
+            builder::editors::property_forms::handle_message_card_clicks,
+            builder::editors::property_forms::handle_add_flag_button,
+            builder::editors::property_forms::handle_add_message_button,
+        ))
         .run();
 }
 
