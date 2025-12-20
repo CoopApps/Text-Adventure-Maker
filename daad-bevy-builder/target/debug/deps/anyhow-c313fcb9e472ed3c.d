@@ -1,0 +1,15 @@
+/home/user/Text-Adventure-Maker/daad-bevy-builder/target/debug/deps/anyhow-c313fcb9e472ed3c.d: /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/lib.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/backtrace.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/chain.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/context.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/ensure.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/error.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/fmt.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/kind.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/macros.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/ptr.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/wrapper.rs
+
+/home/user/Text-Adventure-Maker/daad-bevy-builder/target/debug/deps/libanyhow-c313fcb9e472ed3c.rmeta: /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/lib.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/backtrace.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/chain.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/context.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/ensure.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/error.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/fmt.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/kind.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/macros.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/ptr.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/wrapper.rs
+
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/lib.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/backtrace.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/chain.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/context.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/ensure.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/error.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/fmt.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/kind.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/macros.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/ptr.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/wrapper.rs:
