@@ -63,6 +63,13 @@ fn main() {
             preview::preview_ui::handle_preview_command_buttons,
             preview::preview_ui::handle_reset_game_button,
         ))
+        .add_systems(Update, (
+            // Export systems
+            builder::ui::export_ui::render_export_panel,
+            builder::ui::export_ui::handle_save_json_button,
+            builder::ui::export_ui::handle_export_daad_button,
+            builder::ui::export_ui::handle_preview_daad_button,
+        ))
         .run();
 }
 
