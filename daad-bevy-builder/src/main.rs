@@ -30,6 +30,10 @@ fn main() {
             builder::editors::location_editor::handle_location_drag,
             builder::editors::location_editor::handle_connection_creation,
             builder::editors::location_editor::render_connection_preview,
+            // Object editor systems
+            builder::editors::object_editor::render_object_sidebar,
+            builder::editors::object_editor::handle_object_card_clicks,
+            builder::editors::object_editor::handle_add_object_button,
             handle_keyboard_shortcuts,
         ))
         .run();
