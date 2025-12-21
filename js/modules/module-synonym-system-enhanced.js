@@ -1,6 +1,6 @@
 // module-synonym-system-enhanced.js - Module 19: Complete Synonym System
 // Part of DAAD Adventure Creator - Advanced Professional Feature for Vocabulary Management
-// Enhanced with full functionality - all features implemented
+// Enhanced with full functionality - all features implemented with professional modals
 
 (function() {
     'use strict';
@@ -58,7 +58,7 @@
                             <h3>🗣️ Natural Language Enhancement</h3>
                             <p>Create intuitive vocabulary systems that allow players to use natural language.
                             Support multiple ways to express actions and reference objects, dramatically improving
-                            accessibility and player experience. All features fully implemented!</p>
+                            accessibility and player experience. All features fully implemented with professional UI!</p>
                         </div>
 
                         ${this.renderTabNavigation()}
@@ -987,7 +987,69 @@ inventory items stuff things`,
             return 'Needs Improvement';
         },
 
-        // Action methods
+        // MODAL CREATION HELPER
+        createModal(title, content, onSave, options = {}) {
+            const modal = document.createElement('div');
+            modal.className = 'synonym-modal-overlay';
+            modal.innerHTML = `
+                <div class="synonym-modal">
+                    <div class="synonym-modal-header">
+                        <h3>${title}</h3>
+                        <button class="synonym-modal-close" onclick="this.closest('.synonym-modal-overlay').remove()">✕</button>
+                    </div>
+                    <div class="synonym-modal-body">
+                        ${content}
+                    </div>
+                    <div class="synonym-modal-footer">
+                        <button class="btn btn-secondary" onclick="this.closest('.synonym-modal-overlay').remove()">Cancel</button>
+                        <button class="btn btn-primary" id="synonymModalSave">${options.saveLabel || 'Save'}</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            const saveBtn = modal.querySelector('#synonymModalSave');
+            if (saveBtn && onSave) {
+                saveBtn.onclick = () => {
+                    const result = onSave();
+                    if (result !== false) {
+                        modal.remove();
+                    }
+                };
+            }
+
+            // Close on overlay click
+            modal.onclick = (e) => {
+                if (e.target === modal) modal.remove();
+            };
+
+            return modal;
+        },
+
+        showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `synonym-notification synonym-notification-${type}`;
+            notification.innerHTML = `
+                <div class="synonym-notification-content">
+                    <span class="synonym-notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+                    <span class="synonym-notification-message">${message}</span>
+                </div>
+            `;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        },
+
+        // Action methods (ALL REWRITTEN WITH MODALS)
         switchTab(tabId) {
             AdventureCreator.state.synonymSystem.selectedTab = tabId;
             AdventureCreator.navigate('editor');
@@ -997,27 +1059,64 @@ inventory items stuff things`,
             const game = AdventureCreator.getCurrentGame();
             if (!game.daad.synonyms) game.daad.synonyms = [];
 
-            const primary = prompt('Enter primary word:', 'newword');
-            if (!primary) return;
+            const modalContent = `
+                <div class="form-group">
+                    <label for="synonymPrimary">Primary Word *</label>
+                    <input type="text" id="synonymPrimary" class="form-control" placeholder="e.g., take" required>
+                    <small class="form-text">The main word that alternatives will be converted to</small>
+                </div>
+                <div class="form-group">
+                    <label for="synonymAlternatives">Alternatives (comma-separated) *</label>
+                    <input type="text" id="synonymAlternatives" class="form-control" placeholder="e.g., get, pick, grab, obtain" required>
+                    <small class="form-text">Alternative words that mean the same thing</small>
+                </div>
+                <div class="form-group">
+                    <label for="synonymType">Word Type *</label>
+                    <select id="synonymType" class="form-control">
+                        <option value="VERB">VERB - Action word</option>
+                        <option value="NOUN">NOUN - Object or direction</option>
+                        <option value="ADJECTIVE">ADJECTIVE - Descriptor</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="synonymCategory">Category</label>
+                    <select id="synonymCategory" class="form-control">
+                        <option value="basic_verbs">Basic Verbs</option>
+                        <option value="movement">Movement</option>
+                        <option value="objects">Objects</option>
+                        <option value="interface">Interface</option>
+                        <option value="social">Social</option>
+                        <option value="advanced">Advanced</option>
+                    </select>
+                </div>
+            `;
 
-            const alternatives = prompt('Enter alternatives (comma-separated):', 'alt1, alt2');
-            if (!alternatives) return;
+            this.createModal('Create Synonym Group', modalContent, () => {
+                const primary = document.getElementById('synonymPrimary').value.trim();
+                const alternatives = document.getElementById('synonymAlternatives').value.trim();
+                const type = document.getElementById('synonymType').value;
+                const category = document.getElementById('synonymCategory').value;
 
-            const type = prompt('Word type (VERB/NOUN/ADJECTIVE):', 'VERB');
+                if (!primary || !alternatives) {
+                    this.showNotification('Please fill in all required fields', 'error');
+                    return false;
+                }
 
-            const newSynonym = {
-                primary: primary.toLowerCase(),
-                type: type.toUpperCase(),
-                alternatives: alternatives.split(',').map(alt => alt.trim().toLowerCase()),
-                category: 'basic_verbs',
-                description: 'Custom synonym group'
-            };
+                const newSynonym = {
+                    primary: primary.toLowerCase(),
+                    type: type,
+                    alternatives: alternatives.split(',').map(alt => alt.trim().toLowerCase()).filter(a => a),
+                    category: category,
+                    description: 'Custom synonym group'
+                };
 
-            game.daad.synonyms.push(newSynonym);
-            AdventureCreator.state.synonymSystem.selectedSynonym = game.daad.synonyms.length - 1;
+                game.daad.synonyms.push(newSynonym);
+                AdventureCreator.state.synonymSystem.selectedSynonym = game.daad.synonyms.length - 1;
 
-            console.log(`Created synonym group: ${primary}`);
-            AdventureCreator.navigate('editor');
+                console.log(`Created synonym group: ${primary}`);
+                this.showNotification(`Created synonym group: ${primary}`, 'success');
+                AdventureCreator.navigate('editor');
+            });
         },
 
         selectCategory(categoryKey) {
@@ -1050,7 +1149,8 @@ inventory items stuff things`,
                 }
             });
 
-            alert(`Added ${added} synonym groups from ${category.name}!`);
+            this.showNotification(`Added ${added} synonym groups from ${category.name}!`, 'success');
+            console.log(`Applied category ${categoryKey}: ${added} synonyms added`);
             AdventureCreator.navigate('editor');
         },
 
@@ -1091,7 +1191,7 @@ inventory items stuff things`,
                 }
             });
 
-            alert(`Generated ${added} common synonym groups!`);
+            this.showNotification(`Generated ${added} common synonym groups!`, 'success');
             console.log(`Generated ${added} common synonyms`);
             AdventureCreator.navigate('editor');
         },
@@ -1101,21 +1201,56 @@ inventory items stuff things`,
             const synonym = game.daad.synonyms[index];
             if (!synonym) return;
 
-            const newPrimary = prompt('Primary word:', synonym.primary);
-            if (newPrimary === null) return;
+            const modalContent = `
+                <div class="form-group">
+                    <label for="editSynonymPrimary">Primary Word *</label>
+                    <input type="text" id="editSynonymPrimary" class="form-control" value="${synonym.primary}" required>
+                </div>
+                <div class="form-group">
+                    <label for="editSynonymAlternatives">Alternatives (comma-separated) *</label>
+                    <input type="text" id="editSynonymAlternatives" class="form-control" value="${synonym.alternatives.join(', ')}" required>
+                </div>
+                <div class="form-group">
+                    <label for="editSynonymType">Word Type *</label>
+                    <select id="editSynonymType" class="form-control">
+                        <option value="VERB" ${synonym.type === 'VERB' ? 'selected' : ''}>VERB</option>
+                        <option value="NOUN" ${synonym.type === 'NOUN' ? 'selected' : ''}>NOUN</option>
+                        <option value="ADJECTIVE" ${synonym.type === 'ADJECTIVE' ? 'selected' : ''}>ADJECTIVE</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editSynonymCategory">Category</label>
+                    <select id="editSynonymCategory" class="form-control">
+                        <option value="basic_verbs" ${synonym.category === 'basic_verbs' ? 'selected' : ''}>Basic Verbs</option>
+                        <option value="movement" ${synonym.category === 'movement' ? 'selected' : ''}>Movement</option>
+                        <option value="objects" ${synonym.category === 'objects' ? 'selected' : ''}>Objects</option>
+                        <option value="interface" ${synonym.category === 'interface' ? 'selected' : ''}>Interface</option>
+                        <option value="social" ${synonym.category === 'social' ? 'selected' : ''}>Social</option>
+                        <option value="advanced" ${synonym.category === 'advanced' ? 'selected' : ''}>Advanced</option>
+                    </select>
+                </div>
+            `;
 
-            const newAlternatives = prompt('Alternatives (comma-separated):', synonym.alternatives.join(', '));
-            if (newAlternatives === null) return;
+            this.createModal('Edit Synonym Group', modalContent, () => {
+                const newPrimary = document.getElementById('editSynonymPrimary').value.trim();
+                const newAlternatives = document.getElementById('editSynonymAlternatives').value.trim();
+                const newType = document.getElementById('editSynonymType').value;
+                const newCategory = document.getElementById('editSynonymCategory').value;
 
-            const newType = prompt('Type (VERB/NOUN/ADJECTIVE):', synonym.type);
-            if (newType === null) return;
+                if (!newPrimary || !newAlternatives) {
+                    this.showNotification('Please fill in all required fields', 'error');
+                    return false;
+                }
 
-            synonym.primary = newPrimary.toLowerCase();
-            synonym.alternatives = newAlternatives.split(',').map(alt => alt.trim().toLowerCase());
-            synonym.type = newType.toUpperCase();
+                synonym.primary = newPrimary.toLowerCase();
+                synonym.alternatives = newAlternatives.split(',').map(alt => alt.trim().toLowerCase()).filter(a => a);
+                synonym.type = newType;
+                synonym.category = newCategory;
 
-            console.log(`Edited synonym: ${synonym.primary}`);
-            AdventureCreator.navigate('editor');
+                console.log(`Edited synonym: ${synonym.primary}`);
+                this.showNotification(`Updated synonym: ${synonym.primary}`, 'success');
+                AdventureCreator.navigate('editor');
+            });
         },
 
         duplicateSynonym(index) {
@@ -1130,6 +1265,7 @@ inventory items stuff things`,
             };
 
             game.daad.synonyms.push(duplicate);
+            this.showNotification(`Duplicated synonym: ${synonym.primary}`, 'success');
             console.log(`Duplicated synonym: ${synonym.primary}`);
             AdventureCreator.navigate('editor');
         },
@@ -1139,25 +1275,64 @@ inventory items stuff things`,
             const synonym = game.daad.synonyms[index];
             if (!synonym) return;
 
-            const test = `Primary: ${synonym.primary}\nAlternatives: ${synonym.alternatives.join(', ')}\n\nAll these words will be recognized as: ${synonym.primary.toUpperCase()}`;
-            alert(`Synonym Test\n\n${test}`);
+            const testInfo = `
+                <div class="synonym-test-info">
+                    <div class="test-info-section">
+                        <strong>Primary Word:</strong>
+                        <div class="test-primary">${synonym.primary}</div>
+                    </div>
+                    <div class="test-info-section">
+                        <strong>Alternatives:</strong>
+                        <div class="test-alternatives">
+                            ${synonym.alternatives.map(alt => `<span class="alternative-badge">${alt}</span>`).join('')}
+                        </div>
+                    </div>
+                    <div class="test-info-section">
+                        <strong>Recognition:</strong>
+                        <div class="test-recognition">
+                            All these words will be recognized as: <code>${synonym.primary.toUpperCase()}</code>
+                        </div>
+                    </div>
+                    <div class="test-info-section">
+                        <strong>DAAD Code:</strong>
+                        <pre class="code-block"><code>${this.generateSynonymDAAD(synonym)}</code></pre>
+                    </div>
+                </div>
+            `;
+
+            this.createModal('Synonym Test', testInfo, null, { saveLabel: 'Close' });
         },
 
         deleteSynonym(index) {
-            if (!confirm('Delete this synonym group?')) return;
-
             const game = AdventureCreator.getCurrentGame();
-            const deleted = game.daad.synonyms[index];
-            game.daad.synonyms.splice(index, 1);
+            const synonym = game.daad.synonyms[index];
+            if (!synonym) return;
 
-            if (AdventureCreator.state.synonymSystem.selectedSynonym === index) {
-                AdventureCreator.state.synonymSystem.selectedSynonym = null;
-            } else if (AdventureCreator.state.synonymSystem.selectedSynonym > index) {
-                AdventureCreator.state.synonymSystem.selectedSynonym--;
-            }
+            const confirmContent = `
+                <div class="confirm-message">
+                    <div class="confirm-icon">⚠️</div>
+                    <p>Are you sure you want to delete this synonym group?</p>
+                    <div class="synonym-to-delete">
+                        <strong>${synonym.primary}</strong>
+                        <div>${synonym.alternatives.join(', ')}</div>
+                    </div>
+                    <p class="warning-text">This action cannot be undone.</p>
+                </div>
+            `;
 
-            console.log(`Deleted synonym: ${deleted.primary}`);
-            AdventureCreator.navigate('editor');
+            this.createModal('Confirm Delete', confirmContent, () => {
+                game.daad.synonyms.splice(index, 1);
+
+                if (AdventureCreator.state.synonymSystem.selectedSynonym === index) {
+                    AdventureCreator.state.synonymSystem.selectedSynonym = null;
+                } else if (AdventureCreator.state.synonymSystem.selectedSynonym > index) {
+                    AdventureCreator.state.synonymSystem.selectedSynonym--;
+                }
+
+                console.log(`Deleted synonym: ${synonym.primary}`);
+                this.showNotification(`Deleted synonym: ${synonym.primary}`, 'success');
+                AdventureCreator.navigate('editor');
+            }, { saveLabel: 'Delete' });
         },
 
         sortSynonyms(method) {
@@ -1171,41 +1346,86 @@ inventory items stuff things`,
             }
 
             console.log(`Sorted synonyms by ${method}`);
+            this.showNotification(`Sorted synonyms by ${method}`, 'success');
             AdventureCreator.navigate('editor');
         },
 
         clearAllSynonyms() {
-            if (!confirm('Delete ALL synonym groups? This cannot be undone!')) return;
-
             const game = AdventureCreator.getCurrentGame();
             const count = game.daad.synonyms.length;
-            game.daad.synonyms = [];
-            AdventureCreator.state.synonymSystem.selectedSynonym = null;
 
-            alert(`Deleted ${count} synonym groups.`);
-            console.log(`Cleared all synonyms (${count} groups)`);
-            AdventureCreator.navigate('editor');
+            if (count === 0) {
+                this.showNotification('No synonyms to clear', 'info');
+                return;
+            }
+
+            const confirmContent = `
+                <div class="confirm-message">
+                    <div class="confirm-icon">⚠️</div>
+                    <p>Are you sure you want to delete ALL synonym groups?</p>
+                    <div class="synonym-count-warning">
+                        <strong>${count} synonym groups</strong> will be permanently deleted
+                    </div>
+                    <p class="warning-text">This action cannot be undone!</p>
+                </div>
+            `;
+
+            this.createModal('Confirm Clear All', confirmContent, () => {
+                game.daad.synonyms = [];
+                AdventureCreator.state.synonymSystem.selectedSynonym = null;
+
+                console.log(`Cleared all synonyms (${count} groups)`);
+                this.showNotification(`Deleted ${count} synonym groups`, 'success');
+                AdventureCreator.navigate('editor');
+            }, { saveLabel: 'Clear All' });
         },
 
         importSynonyms() {
-            const json = prompt('Paste synonym JSON data:');
-            if (!json) return;
+            const modalContent = `
+                <div class="form-group">
+                    <label for="importSynonymJSON">Paste Synonym JSON Data</label>
+                    <textarea id="importSynonymJSON" class="form-control" rows="10" placeholder='[{"primary":"take","type":"VERB","alternatives":["get","pick"],"category":"basic_verbs"}]'></textarea>
+                    <small class="form-text">Paste a JSON array of synonym objects</small>
+                </div>
+                <div class="import-help">
+                    <strong>Expected Format:</strong>
+                    <pre class="code-block"><code>[
+  {
+    "primary": "take",
+    "type": "VERB",
+    "alternatives": ["get", "pick", "grab"],
+    "category": "basic_verbs"
+  }
+]</code></pre>
+                </div>
+            `;
 
-            try {
-                const imported = JSON.parse(json);
-                const game = AdventureCreator.getCurrentGame();
+            this.createModal('Import Synonyms', modalContent, () => {
+                const json = document.getElementById('importSynonymJSON').value.trim();
 
-                if (Array.isArray(imported)) {
-                    game.daad.synonyms = game.daad.synonyms.concat(imported);
-                    alert(`Imported ${imported.length} synonym groups!`);
-                } else {
-                    alert('Invalid JSON format. Expected an array of synonym objects.');
+                if (!json) {
+                    this.showNotification('Please paste JSON data to import', 'error');
+                    return false;
                 }
 
-                AdventureCreator.navigate('editor');
-            } catch (e) {
-                alert('Invalid JSON format!');
-            }
+                try {
+                    const imported = JSON.parse(json);
+                    const game = AdventureCreator.getCurrentGame();
+
+                    if (Array.isArray(imported)) {
+                        game.daad.synonyms = game.daad.synonyms.concat(imported);
+                        this.showNotification(`Imported ${imported.length} synonym groups!`, 'success');
+                        console.log(`Imported ${imported.length} synonyms`);
+                        AdventureCreator.navigate('editor');
+                    } else {
+                        this.showNotification('Invalid JSON format. Expected an array of synonym objects.', 'error');
+                        return false;
+                    }
+                } catch (e) {
+                    this.showNotification('Invalid JSON format! ' + e.message, 'error');
+                    return false;
+                }
+            }, { saveLabel: 'Import' });
         },
 
         exportDAAD() {
@@ -1213,7 +1433,7 @@ inventory items stuff things`,
             const synonyms = game.daad.synonyms || [];
 
             if (synonyms.length === 0) {
-                alert('No synonyms to export. Create some synonym groups first.');
+                this.showNotification('No synonyms to export. Create some synonym groups first.', 'info');
                 return;
             }
 
@@ -1230,6 +1450,7 @@ inventory items stuff things`,
             a.click();
             URL.revokeObjectURL(url);
 
+            this.showNotification(`Exported ${synonyms.length} synonyms to DAAD format`, 'success');
             console.log(`Exported ${synonyms.length} synonyms to DAAD format`);
         },
 
@@ -1238,7 +1459,7 @@ inventory items stuff things`,
             const synonyms = game.daad.synonyms || [];
 
             if (synonyms.length === 0) {
-                alert('No synonyms to export.');
+                this.showNotification('No synonyms to export.', 'info');
                 return;
             }
 
@@ -1252,6 +1473,7 @@ inventory items stuff things`,
             a.click();
             URL.revokeObjectURL(url);
 
+            this.showNotification(`Exported ${synonyms.length} synonyms to JSON`, 'success');
             console.log(`Exported ${synonyms.length} synonyms to JSON`);
         },
 
@@ -1270,12 +1492,16 @@ inventory items stuff things`,
                     { primary: 'north', type: 'NOUN', alternatives: ['n'], category: 'movement' }
                 ];
 
+                let added = 0;
                 shortcuts.forEach(syn => {
                     const exists = game.daad.synonyms.some(s => s.primary === syn.primary);
-                    if (!exists) game.daad.synonyms.push(syn);
+                    if (!exists) {
+                        game.daad.synonyms.push(syn);
+                        added++;
+                    }
                 });
 
-                alert(`Applied ${feature.name} - Added abbreviations for common commands!`);
+                this.showNotification(`Applied ${feature.name} - Added ${added} abbreviations!`, 'success');
             }
 
             console.log(`Applied language feature: ${featureId}`);
@@ -1294,12 +1520,16 @@ inventory items stuff things`,
                     { primary: 'southwest', type: 'NOUN', alternatives: ['sw'], category: 'movement' }
                 ];
 
+                let added = 0;
                 movements.forEach(syn => {
                     const exists = game.daad.synonyms.some(s => s.primary === syn.primary);
-                    if (!exists) game.daad.synonyms.push(syn);
+                    if (!exists) {
+                        game.daad.synonyms.push(syn);
+                        added++;
+                    }
                 });
 
-                alert('Added diagonal direction synonyms!');
+                this.showNotification(`Added ${added} diagonal direction synonyms!`, 'success');
             } else if (recId === 'improve_object_names') {
                 this.applyCategorySynonyms('objects');
                 return;
@@ -1317,10 +1547,23 @@ inventory items stuff things`,
             if (!pattern) return;
 
             const preview = pattern.synonyms.map(syn =>
-                `${syn.primary} = ${syn.alternatives.join(', ')}`
-            ).join('\n');
+                `<div class="pattern-preview-item">
+                    <strong>${syn.primary}</strong> = ${syn.alternatives.join(', ')}
+                </div>`
+            ).join('');
 
-            alert(`${pattern.name}\n\n${preview}\n\n...and ${pattern.words - pattern.synonyms.length} more`);
+            const modalContent = `
+                <div class="pattern-preview-full">
+                    <h4>${pattern.name}</h4>
+                    <p>${pattern.description}</p>
+                    <div class="pattern-synonyms-list">
+                        ${preview}
+                    </div>
+                    <p class="pattern-more">...and ${pattern.words - pattern.synonyms.length} more synonyms in this pack</p>
+                </div>
+            `;
+
+            this.createModal('Pattern Preview', modalContent, null, { saveLabel: 'Close' });
         },
 
         applyPattern(patternId) {
@@ -1339,7 +1582,7 @@ inventory items stuff things`,
                 }
             });
 
-            alert(`Applied ${pattern.name}!\nAdded ${added} synonym groups.`);
+            this.showNotification(`Applied ${pattern.name}! Added ${added} synonym groups.`, 'success');
             console.log(`Applied pattern ${patternId}: ${added} groups added`);
             AdventureCreator.navigate('editor');
         },
@@ -1352,7 +1595,7 @@ inventory items stuff things`,
         testInput() {
             const input = document.getElementById('vocabularyTestInput')?.value || '';
             if (!input.trim()) {
-                alert('Please enter a command to test.');
+                this.showNotification('Please enter a command to test', 'info');
                 return;
             }
 
@@ -1416,7 +1659,8 @@ inventory items stuff things`,
 
             AdventureCreator.state.synonymSystem.testHistory.push(test);
 
-            alert(`Common Commands Test\n\n${passed}/${commonCommands.length} commands recognized\n${Math.round((passed/commonCommands.length)*100)}% success rate`);
+            const percentage = Math.round((passed/commonCommands.length)*100);
+            this.showNotification(`Common Commands: ${passed}/${commonCommands.length} recognized (${percentage}%)`, passed === commonCommands.length ? 'success' : 'info');
             console.log('Ran common commands test', test);
             AdventureCreator.navigate('editor');
         },
@@ -1444,7 +1688,8 @@ inventory items stuff things`,
 
             AdventureCreator.state.synonymSystem.testHistory.push(test);
 
-            alert(`Random Variations Test\n\n${passed}/${variations.length} variations recognized\n${Math.round((passed/variations.length)*100)}% success rate`);
+            const percentage = Math.round((passed/variations.length)*100);
+            this.showNotification(`Random Variations: ${passed}/${variations.length} recognized (${percentage}%)`, passed > variations.length / 2 ? 'success' : 'info');
             console.log('Ran random variations test', test);
             AdventureCreator.navigate('editor');
         },
@@ -1473,33 +1718,314 @@ inventory items stuff things`,
             AdventureCreator.state.synonymSystem.testHistory.push(test);
 
             const message = passed === 0
-                ? 'No typo tolerance configured. Consider adding common misspellings to your synonyms!'
-                : `${passed}/${typos.length} typos handled`;
+                ? 'No typo tolerance configured. Consider adding common misspellings!'
+                : `Typo Resilience: ${passed}/${typos.length} handled (${Math.round((passed/typos.length)*100)}%)`;
 
-            alert(`Typo Resilience Test\n\n${message}\n${Math.round((passed/typos.length)*100)}% resilience`);
+            this.showNotification(message, passed > 0 ? 'success' : 'info');
             console.log('Ran typo resilience test', test);
             AdventureCreator.navigate('editor');
         },
 
         fillGap(word, type) {
-            const alternatives = prompt(`Enter alternatives for "${word}" (comma-separated):`, '');
-            if (!alternatives) return;
-
             const game = AdventureCreator.getCurrentGame();
             if (!game.daad.synonyms) game.daad.synonyms = [];
 
-            game.daad.synonyms.push({
-                primary: word.toLowerCase(),
-                type: type.toUpperCase(),
-                alternatives: alternatives.split(',').map(alt => alt.trim().toLowerCase()),
-                category: 'basic_verbs',
-                description: 'Added from vocabulary gap analysis'
-            });
+            const modalContent = `
+                <div class="form-group">
+                    <label>Fill Vocabulary Gap</label>
+                    <p>Adding synonyms for: <strong>${word}</strong></p>
+                </div>
+                <div class="form-group">
+                    <label for="gapAlternatives">Alternatives (comma-separated) *</label>
+                    <input type="text" id="gapAlternatives" class="form-control" placeholder="e.g., alt1, alt2, alt3" required>
+                    <small class="form-text">Alternative words that mean the same as "${word}"</small>
+                </div>
+            `;
 
-            console.log(`Filled vocabulary gap: ${word}`);
-            AdventureCreator.navigate('editor');
+            this.createModal(`Add Synonym for "${word}"`, modalContent, () => {
+                const alternatives = document.getElementById('gapAlternatives').value.trim();
+
+                if (!alternatives) {
+                    this.showNotification('Please enter at least one alternative', 'error');
+                    return false;
+                }
+
+                game.daad.synonyms.push({
+                    primary: word.toLowerCase(),
+                    type: type.toUpperCase(),
+                    alternatives: alternatives.split(',').map(alt => alt.trim().toLowerCase()).filter(a => a),
+                    category: 'basic_verbs',
+                    description: 'Added from vocabulary gap analysis'
+                });
+
+                console.log(`Filled vocabulary gap: ${word}`);
+                this.showNotification(`Added synonym for: ${word}`, 'success');
+                AdventureCreator.navigate('editor');
+            });
         }
     });
+
+    // Add CSS for modals and notifications
+    const style = document.createElement('style');
+    style.textContent = `
+        .synonym-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            animation: fadeIn 0.2s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .synonym-modal {
+            background: var(--bg-secondary, #1e1e1e);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.3s;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .synonym-modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color, #333);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .synonym-modal-header h3 {
+            margin: 0;
+            color: var(--text-primary, #fff);
+        }
+
+        .synonym-modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary, #aaa);
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+
+        .synonym-modal-close:hover {
+            background: var(--hover-bg, #333);
+            color: var(--text-primary, #fff);
+        }
+
+        .synonym-modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .synonym-modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color, #333);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+
+        .synonym-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--bg-secondary, #1e1e1e);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            padding: 1rem 1.5rem;
+            z-index: 10001;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .synonym-notification.show {
+            transform: translateX(0);
+        }
+
+        .synonym-notification-content {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .synonym-notification-icon {
+            font-size: 1.25rem;
+        }
+
+        .synonym-notification-message {
+            color: var(--text-primary, #fff);
+        }
+
+        .synonym-notification-success {
+            border-left: 4px solid #10b981;
+        }
+
+        .synonym-notification-error {
+            border-left: 4px solid #ef4444;
+        }
+
+        .synonym-notification-info {
+            border-left: 4px solid #3b82f6;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary, #fff);
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.5rem;
+            background: var(--input-bg, #2a2a2a);
+            border: 1px solid var(--border-color, #444);
+            border-radius: 4px;
+            color: var(--text-primary, #fff);
+            font-size: 0.95rem;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color, #3b82f6);
+        }
+
+        .form-text {
+            display: block;
+            margin-top: 0.25rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary, #aaa);
+        }
+
+        .confirm-message {
+            text-align: center;
+        }
+
+        .confirm-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .confirm-message p {
+            margin: 0.75rem 0;
+            color: var(--text-primary, #fff);
+        }
+
+        .warning-text {
+            color: var(--warning-color, #f59e0b);
+            font-weight: 500;
+        }
+
+        .synonym-to-delete {
+            background: var(--bg-tertiary, #2a2a2a);
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+
+        .synonym-count-warning {
+            background: var(--bg-tertiary, #2a2a2a);
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            color: var(--warning-color, #f59e0b);
+        }
+
+        .import-help {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: var(--bg-tertiary, #2a2a2a);
+            border-radius: 4px;
+        }
+
+        .synonym-test-info .test-info-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .synonym-test-info strong {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary, #fff);
+        }
+
+        .test-primary {
+            font-size: 1.5rem;
+            color: var(--primary-color, #3b82f6);
+            font-weight: 600;
+        }
+
+        .test-alternatives {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .alternative-badge {
+            background: var(--bg-tertiary, #2a2a2a);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .test-recognition {
+            background: var(--bg-tertiary, #2a2a2a);
+            padding: 0.75rem;
+            border-radius: 4px;
+        }
+
+        .pattern-preview-full h4 {
+            margin-top: 0;
+            color: var(--text-primary, #fff);
+        }
+
+        .pattern-synonyms-list {
+            margin: 1rem 0;
+        }
+
+        .pattern-preview-item {
+            padding: 0.75rem;
+            background: var(--bg-tertiary, #2a2a2a);
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+        }
+
+        .pattern-more {
+            color: var(--text-secondary, #aaa);
+            font-style: italic;
+        }
+    `;
+    document.head.appendChild(style);
 
     console.log('Enhanced Synonym System registered successfully');
 })();
