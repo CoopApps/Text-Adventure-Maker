@@ -124,7 +124,21 @@ impl Default for DaadGame {
                     editor_color: Color::rgb(0.3, 0.5, 0.7),
                 }
             ],
-            objects: vec![],
+            objects: vec![
+                Object {
+                    id: 0,
+                    name: "torch".to_string(),
+                    description: "A burning torch".to_string(),
+                    noun: "torch".to_string(),
+                    adjective: "burning".to_string(),
+                    location: ObjectLocation::Location(0),
+                    weight: 10,
+                    is_container: false,
+                    is_wearable: false,
+                    is_takeable: true,
+                    icon: "🔦".to_string(),
+                },
+            ],
             rules: vec![],
             flags: vec![
                 Flag {
@@ -154,6 +168,16 @@ impl Default for DaadGame {
                     word: "drop".to_string(),
                     word_type: VocabType::Verb,
                     id: 18,
+                },
+                VocabEntry {
+                    word: "torch".to_string(),
+                    word_type: VocabType::Noun,
+                    id: 0,
+                },
+                VocabEntry {
+                    word: "burning".to_string(),
+                    word_type: VocabType::Adjective,
+                    id: 0,
                 },
             ],
             maluva_enabled: false,

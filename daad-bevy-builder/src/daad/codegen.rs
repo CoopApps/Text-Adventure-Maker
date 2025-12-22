@@ -138,6 +138,10 @@ impl DaadCodeGenerator {
         // 9-12. /PRO 0-3 - Process Tables
         code.push_str(&Self::generate_processes(game));
 
+        // CRITICAL: /END is required by DRC
+        code.push_str("\n;------------------------------------------------------------------------------\n");
+        code.push_str("/END\n");
+
         code
     }
 
