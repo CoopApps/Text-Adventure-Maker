@@ -14,6 +14,7 @@ pub mod playtest_ui;
 pub mod templates_ui;
 pub mod dialogue_ui;
 pub mod debug_ui;
+pub mod condition_action_modals;
 
 pub use export_ui::*;
 pub use vocabulary_ui::*;
@@ -25,3 +26,4 @@ pub use playtest_ui::*;
 pub use templates_ui::*;
 pub use dialogue_ui::*;
 pub use debug_ui::*;
+pub use condition_action_modals::*;

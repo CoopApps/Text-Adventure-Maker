@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use crate::builder::state::{BuilderState, EditMode, Panel};
+use crate::builder::ui::condition_action_modals::{ConditionEditorState, ActionEditorState};
 use crate::daad::types::{ProcessTable, ConditionType, ActionType, Condition, Action};
 
 /// Render rule editor sidebar when Rules panel is active
@@ -264,14 +265,91 @@ pub fn render_rule_detail_editor(
                 } else {
                     for (idx, condition) in rule.conditions.iter().enumerate() {
                         let condition_text = format_condition(condition, &state);
-                        parent.spawn(TextBundle::from_section(
-                            format!("  {}. {}", idx + 1, condition_text),
-                            TextStyle {
-                                font_size: 11.0,
-                                color: Color::rgb(0.8, 0.8, 0.8),
+
+                        // Condition row with edit/delete buttons
+                        parent.spawn(NodeBundle {
+                            style: Style {
+                                display: Display::Flex,
+                                flex_direction: FlexDirection::Row,
+                                align_items: AlignItems::Center,
+                                column_gap: Val::Px(8.0),
+                                padding: UiRect::all(Val::Px(4.0)),
                                 ..default()
                             },
-                        ));
+                            ..default()
+                        })
+                        .with_children(|row| {
+                            // Condition text
+                            row.spawn(NodeBundle {
+                                style: Style {
+                                    flex_grow: 1.0,
+                                    ..default()
+                                },
+                                ..default()
+                            })
+                            .with_children(|text_container| {
+                                text_container.spawn(TextBundle::from_section(
+                                    format!("{}. {}", idx + 1, condition_text),
+                                    TextStyle {
+                                        font_size: 11.0,
+                                        color: Color::rgb(0.8, 0.8, 0.8),
+                                        ..default()
+                                    },
+                                ));
+                            });
+
+                            // Edit button
+                            row.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                                        ..default()
+                                    },
+                                    background_color: Color::rgb(0.4, 0.5, 0.6).into(),
+                                    ..default()
+                                },
+                                EditConditionButton {
+                                    rule_index: selected_rule_idx,
+                                    condition_index: idx,
+                                },
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    "✏️",
+                                    TextStyle {
+                                        font_size: 11.0,
+                                        color: Color::WHITE,
+                                        ..default()
+                                    },
+                                ));
+                            });
+
+                            // Delete button
+                            row.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                                        ..default()
+                                    },
+                                    background_color: Color::rgb(0.6, 0.3, 0.3).into(),
+                                    ..default()
+                                },
+                                DeleteConditionButton {
+                                    rule_index: selected_rule_idx,
+                                    condition_index: idx,
+                                },
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    "🗑️",
+                                    TextStyle {
+                                        font_size: 11.0,
+                                        color: Color::WHITE,
+                                        ..default()
+                                    },
+                                ));
+                            });
+                        });
                     }
                 }
 
@@ -324,14 +402,91 @@ pub fn render_rule_detail_editor(
                 } else {
                     for (idx, action) in rule.actions.iter().enumerate() {
                         let action_text = format_action(action, &state);
-                        parent.spawn(TextBundle::from_section(
-                            format!("  {}. {}", idx + 1, action_text),
-                            TextStyle {
-                                font_size: 11.0,
-                                color: Color::rgb(0.8, 0.8, 0.8),
+
+                        // Action row with edit/delete buttons
+                        parent.spawn(NodeBundle {
+                            style: Style {
+                                display: Display::Flex,
+                                flex_direction: FlexDirection::Row,
+                                align_items: AlignItems::Center,
+                                column_gap: Val::Px(8.0),
+                                padding: UiRect::all(Val::Px(4.0)),
                                 ..default()
                             },
-                        ));
+                            ..default()
+                        })
+                        .with_children(|row| {
+                            // Action text
+                            row.spawn(NodeBundle {
+                                style: Style {
+                                    flex_grow: 1.0,
+                                    ..default()
+                                },
+                                ..default()
+                            })
+                            .with_children(|text_container| {
+                                text_container.spawn(TextBundle::from_section(
+                                    format!("{}. {}", idx + 1, action_text),
+                                    TextStyle {
+                                        font_size: 11.0,
+                                        color: Color::rgb(0.8, 0.8, 0.8),
+                                        ..default()
+                                    },
+                                ));
+                            });
+
+                            // Edit button
+                            row.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                                        ..default()
+                                    },
+                                    background_color: Color::rgb(0.5, 0.4, 0.3).into(),
+                                    ..default()
+                                },
+                                EditActionButton {
+                                    rule_index: selected_rule_idx,
+                                    action_index: idx,
+                                },
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    "✏️",
+                                    TextStyle {
+                                        font_size: 11.0,
+                                        color: Color::WHITE,
+                                        ..default()
+                                    },
+                                ));
+                            });
+
+                            // Delete button
+                            row.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                                        ..default()
+                                    },
+                                    background_color: Color::rgb(0.6, 0.3, 0.3).into(),
+                                    ..default()
+                                },
+                                DeleteActionButton {
+                                    rule_index: selected_rule_idx,
+                                    action_index: idx,
+                                },
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    "🗑️",
+                                    TextStyle {
+                                        font_size: 11.0,
+                                        color: Color::WHITE,
+                                        ..default()
+                                    },
+                                ));
+                            });
+                        });
                     }
                 }
 
@@ -472,51 +627,137 @@ pub fn handle_add_rule_button(
     }
 }
 
-/// Handle add condition button (adds a default condition)
+/// Handle add condition button (opens modal for new condition)
 pub fn handle_add_condition_button(
-    mut state: ResMut<BuilderState>,
+    mut condition_editor_state: ResMut<ConditionEditorState>,
     mut interaction_query: Query<
         (&Interaction, &AddConditionButton),
         Changed<Interaction>,
     >,
 ) {
-    for (interaction, button) in interaction_query.iter_mut() {
+    for (interaction, button) in interaction_query.iter() {
         if *interaction == Interaction::Pressed {
-            if let Some(rule) = state.current_game.rules.get_mut(button.rule_index) {
-                // Add a default condition (player at location 0)
-                let new_id = rule.conditions.len();
-                rule.conditions.push(Condition {
-                    id: new_id,
-                    condition_type: ConditionType::PlayerAt { location_id: 0 },
-                });
-                state.unsaved_changes = true;
-                info!("Added condition to rule {}", button.rule_index);
-            }
+            condition_editor_state.open_new(button.rule_index);
+            info!("Opening condition editor for rule {}", button.rule_index);
         }
     }
 }
 
-/// Handle add action button (adds a default action)
+/// Handle add action button (opens modal for new action)
 pub fn handle_add_action_button(
-    mut state: ResMut<BuilderState>,
+    mut action_editor_state: ResMut<ActionEditorState>,
     mut interaction_query: Query<
         (&Interaction, &AddActionButton),
         Changed<Interaction>,
     >,
 ) {
-    for (interaction, button) in interaction_query.iter_mut() {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            action_editor_state.open_new(button.rule_index);
+            info!("Opening action editor for rule {}", button.rule_index);
+        }
+    }
+}
+
+/// Handle edit condition button (opens modal in edit mode)
+pub fn handle_edit_condition_button(
+    state: Res<BuilderState>,
+    mut condition_editor_state: ResMut<ConditionEditorState>,
+    mut interaction_query: Query<
+        (&Interaction, &EditConditionButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(rule) = state.current_game.rules.get(button.rule_index) {
+                if let Some(condition) = rule.conditions.get(button.condition_index) {
+                    condition_editor_state.open_edit(
+                        button.rule_index,
+                        button.condition_index,
+                        condition,
+                    );
+                    info!("Editing condition {} in rule {}", button.condition_index, button.rule_index);
+                }
+            }
+        }
+    }
+}
+
+/// Handle delete condition button (removes condition from rule)
+pub fn handle_delete_condition_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &DeleteConditionButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
         if *interaction == Interaction::Pressed {
             if let Some(rule) = state.current_game.rules.get_mut(button.rule_index) {
-                // Add a default action (show message)
-                let new_id = rule.actions.len();
-                rule.actions.push(Action {
-                    id: new_id,
-                    action_type: ActionType::ShowMessage {
-                        text: "Something happens.".to_string()
-                    },
-                });
-                state.unsaved_changes = true;
-                info!("Added action to rule {}", button.rule_index);
+                if button.condition_index < rule.conditions.len() {
+                    rule.conditions.remove(button.condition_index);
+
+                    // Re-index remaining conditions
+                    for (idx, condition) in rule.conditions.iter_mut().enumerate() {
+                        condition.id = idx;
+                    }
+
+                    state.unsaved_changes = true;
+                    info!("Deleted condition {} from rule {}", button.condition_index, button.rule_index);
+                }
+            }
+        }
+    }
+}
+
+/// Handle edit action button (opens modal in edit mode)
+pub fn handle_edit_action_button(
+    state: Res<BuilderState>,
+    mut action_editor_state: ResMut<ActionEditorState>,
+    mut interaction_query: Query<
+        (&Interaction, &EditActionButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(rule) = state.current_game.rules.get(button.rule_index) {
+                if let Some(action) = rule.actions.get(button.action_index) {
+                    action_editor_state.open_edit(
+                        button.rule_index,
+                        button.action_index,
+                        action,
+                    );
+                    info!("Editing action {} in rule {}", button.action_index, button.rule_index);
+                }
+            }
+        }
+    }
+}
+
+/// Handle delete action button (removes action from rule)
+pub fn handle_delete_action_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &DeleteActionButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(rule) = state.current_game.rules.get_mut(button.rule_index) {
+                if button.action_index < rule.actions.len() {
+                    rule.actions.remove(button.action_index);
+
+                    // Re-index remaining actions
+                    for (idx, action) in rule.actions.iter_mut().enumerate() {
+                        action.id = idx;
+                    }
+
+                    state.unsaved_changes = true;
+                    info!("Deleted action {} from rule {}", button.action_index, button.rule_index);
+                }
             }
         }
     }
@@ -545,4 +786,28 @@ pub(crate) struct AddConditionButton {
 #[derive(Component)]
 pub(crate) struct AddActionButton {
     rule_index: usize,
+}
+
+#[derive(Component)]
+pub(crate) struct EditConditionButton {
+    rule_index: usize,
+    condition_index: usize,
+}
+
+#[derive(Component)]
+pub(crate) struct DeleteConditionButton {
+    rule_index: usize,
+    condition_index: usize,
+}
+
+#[derive(Component)]
+pub(crate) struct EditActionButton {
+    rule_index: usize,
+    action_index: usize,
+}
+
+#[derive(Component)]
+pub(crate) struct DeleteActionButton {
+    rule_index: usize,
+    action_index: usize,
 }

@@ -19,6 +19,8 @@ fn main() {
         .init_resource::<builder::state::BuilderState>()
         .init_resource::<builder::ui::playtest_ui::PlaytestState>()
         .init_resource::<builder::ui::dialogue_ui::DialogueEditorState>()
+        .init_resource::<builder::ui::condition_action_modals::ConditionEditorState>()
+        .init_resource::<builder::ui::condition_action_modals::ActionEditorState>()
         .init_resource::<builder::debug::DebugState>()
         .add_systems(Startup, setup)
         .add_systems(Update, (
@@ -52,6 +54,22 @@ fn main() {
             builder::editors::rule_editor::handle_add_rule_button,
             builder::editors::rule_editor::handle_add_condition_button,
             builder::editors::rule_editor::handle_add_action_button,
+            builder::editors::rule_editor::handle_edit_condition_button,
+            builder::editors::rule_editor::handle_delete_condition_button,
+            builder::editors::rule_editor::handle_edit_action_button,
+            builder::editors::rule_editor::handle_delete_action_button,
+        ))
+        .add_systems(Update, (
+            // Condition/Action modal systems
+            builder::ui::components::handle_close_modal_button,
+            builder::ui::condition_action_modals::render_condition_editor_modal,
+            builder::ui::condition_action_modals::render_action_editor_modal,
+            builder::ui::condition_action_modals::handle_condition_type_button,
+            builder::ui::condition_action_modals::handle_action_type_button,
+            builder::ui::condition_action_modals::handle_condition_param_buttons,
+            builder::ui::condition_action_modals::handle_action_param_buttons,
+            builder::ui::condition_action_modals::handle_save_condition_button,
+            builder::ui::condition_action_modals::handle_save_action_button,
         ))
         .add_systems(Update, (
             // Flags and messages editor systems
