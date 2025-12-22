@@ -1,9 +1,13 @@
 /// DAAD Game Launcher
 /// Compiles .SCE files with DRC and launches compiled games
 
+pub mod mobile_export;
+
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::io;
+
+pub use mobile_export::MobileExporter;
 
 #[derive(Debug)]
 pub enum LauncherError {

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use crate::builder::state::{BuilderState, Panel};
 use crate::daad::codegen::DaadCodeGenerator;
-use crate::launcher::{DaadLauncher, DrcTarget, DrcSubtarget};
+use crate::launcher::{DaadLauncher, DrcTarget, DrcSubtarget, MobileExporter};
 use std::path::PathBuf;
 use std::fs;
 
@@ -242,6 +242,64 @@ pub fn render_export_panel(
                         "👁️ Preview DAAD Code (shows in code viewer)",
                         TextStyle {
                             font_size: 12.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    ));
+                });
+
+            // Separator
+            parent.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(2.0),
+                    margin: UiRect::vertical(Val::Px(15.0)),
+                    ..default()
+                },
+                background_color: Color::rgb(0.3, 0.3, 0.35).into(),
+                ..default()
+            });
+
+            // Mobile Export Section
+            parent.spawn(TextBundle::from_section(
+                "📱 Export to Mobile HTML",
+                TextStyle {
+                    font_size: 18.0,
+                    color: Color::rgb(0.9, 0.9, 1.0),
+                    ..default()
+                },
+            ));
+
+            parent.spawn(TextBundle::from_section(
+                "Create a mobile-optimized HTML5 game with touch controls and responsive design",
+                TextStyle {
+                    font_size: 12.0,
+                    color: Color::rgb(0.6, 0.6, 0.6),
+                    ..default()
+                },
+            ));
+
+            // Export Mobile HTML button
+            parent
+                .spawn((
+                    ButtonBundle {
+                        style: Style {
+                            padding: UiRect::all(Val::Px(12.0)),
+                            margin: UiRect::vertical(Val::Px(8.0)),
+                            border: UiRect::all(Val::Px(2.0)),
+                            ..default()
+                        },
+                        background_color: Color::rgb(0.6, 0.4, 0.8).into(),
+                        border_color: Color::rgb(0.7, 0.5, 0.9).into(),
+                        ..default()
+                    },
+                    ExportMobileButton,
+                ))
+                .with_children(|parent| {
+                    parent.spawn(TextBundle::from_section(
+                        "📱 EXPORT TO MOBILE HTML",
+                        TextStyle {
+                            font_size: 14.0,
                             color: Color::WHITE,
                             ..default()
                         },
@@ -646,6 +704,40 @@ pub fn handle_export_daad_button(
     }
 }
 
+/// Handle mobile HTML export button
+pub fn handle_export_mobile_button(
+    state: Res<BuilderState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<ExportMobileButton>),
+    >,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            // Create exports directory if it doesn't exist
+            let _ = fs::create_dir_all("./exports");
+
+            // Generate filename from game title
+            let filename = state.current_game.title.replace(' ', "_").to_lowercase();
+            let filepath = format!("./exports/{}_mobile.html", filename);
+
+            // Generate mobile HTML
+            let html = MobileExporter::export(&state.current_game);
+
+            // Write to file
+            match fs::write(&filepath, html) {
+                Ok(_) => {
+                    info!("✅ Mobile HTML game exported to: {}", filepath);
+                    info!("📱 Open {} in your browser or transfer to mobile device!", filepath);
+                }
+                Err(e) => {
+                    error!("❌ Failed to write mobile HTML file: {}", e);
+                }
+            }
+        }
+    }
+}
+
 /// Handle preview DAAD code button
 pub fn handle_preview_daad_button(
     mut state: ResMut<BuilderState>,
@@ -901,3 +993,6 @@ pub(crate) struct PlatformButton {
 
 #[derive(Component)]
 pub(crate) struct PlayInBrowserButton;
+
+#[derive(Component)]
+pub(crate) struct ExportMobileButton;

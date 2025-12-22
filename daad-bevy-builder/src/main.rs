@@ -71,6 +71,7 @@ fn main() {
             builder::ui::export_ui::render_export_panel,
             builder::ui::export_ui::handle_save_json_button,
             builder::ui::export_ui::handle_export_daad_button,
+            builder::ui::export_ui::handle_export_mobile_button,
             builder::ui::export_ui::handle_preview_daad_button,
             builder::ui::export_ui::handle_platform_button,
             builder::ui::export_ui::handle_build_test_button,
