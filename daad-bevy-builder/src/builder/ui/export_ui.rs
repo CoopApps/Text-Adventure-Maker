@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use crate::builder::state::{BuilderState, Panel};
 use crate::daad::codegen::DaadCodeGenerator;
-use crate::launcher::{DaadLauncher, DrcTarget};
+use crate::launcher::{DaadLauncher, DrcTarget, DrcSubtarget};
 use std::path::PathBuf;
 use std::fs;
 
@@ -279,6 +279,172 @@ pub fn render_export_panel(
                 },
             ));
 
+            // Platform selector
+            parent.spawn(TextBundle::from_section(
+                "Target Platform:",
+                TextStyle {
+                    font_size: 13.0,
+                    color: Color::rgb(0.9, 0.9, 0.9),
+                    ..default()
+                },
+            ));
+
+            // Platform selection grid
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
+                        display: Display::Grid,
+                        grid_template_columns: RepeatedGridTrack::flex(3, 1.0),
+                        column_gap: Val::Px(8.0),
+                        row_gap: Val::Px(8.0),
+                        margin: UiRect::vertical(Val::Px(8.0)),
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|parent| {
+                    // Helper function to create platform button
+                    let create_platform_button = |parent: &mut ChildBuilder,
+                                                   name: &str,
+                                                   icon: &str,
+                                                   target: DrcTarget,
+                                                   is_selected: bool| {
+                        let bg_color = if is_selected {
+                            Color::rgb(0.4, 0.6, 0.4)
+                        } else {
+                            Color::rgb(0.3, 0.3, 0.35)
+                        };
+                        let border_color = if is_selected {
+                            Color::rgb(0.6, 0.9, 0.6)
+                        } else {
+                            Color::rgb(0.4, 0.4, 0.45)
+                        };
+
+                        parent
+                            .spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::all(Val::Px(8.0)),
+                                        border: UiRect::all(Val::Px(2.0)),
+                                        flex_direction: FlexDirection::Column,
+                                        align_items: AlignItems::Center,
+                                        justify_content: JustifyContent::Center,
+                                        ..default()
+                                    },
+                                    background_color: bg_color.into(),
+                                    border_color: border_color.into(),
+                                    ..default()
+                                },
+                                PlatformButton { target },
+                            ))
+                            .with_children(|parent| {
+                                parent.spawn(TextBundle::from_section(
+                                    icon,
+                                    TextStyle {
+                                        font_size: 20.0,
+                                        color: Color::WHITE,
+                                        ..default()
+                                    },
+                                ));
+                                parent.spawn(TextBundle::from_section(
+                                    name,
+                                    TextStyle {
+                                        font_size: 10.0,
+                                        color: Color::rgb(0.9, 0.9, 0.9),
+                                        ..default()
+                                    },
+                                ));
+                            });
+                    };
+
+                    let selected = state.target_platform;
+
+                    // Row 1
+                    create_platform_button(
+                        parent,
+                        "ZX Spectrum",
+                        "💾",
+                        DrcTarget::ZXSpectrum,
+                        selected == DrcTarget::ZXSpectrum,
+                    );
+                    create_platform_button(
+                        parent,
+                        "Amstrad CPC",
+                        "🖥️",
+                        DrcTarget::AmstradCPC,
+                        selected == DrcTarget::AmstradCPC,
+                    );
+                    create_platform_button(
+                        parent,
+                        "C64",
+                        "🎮",
+                        DrcTarget::Commodore64,
+                        selected == DrcTarget::Commodore64,
+                    );
+
+                    // Row 2
+                    create_platform_button(
+                        parent,
+                        "MSX",
+                        "📼",
+                        DrcTarget::MSX,
+                        selected == DrcTarget::MSX,
+                    );
+                    create_platform_button(
+                        parent,
+                        "MSX2",
+                        "📼",
+                        DrcTarget::MSX2,
+                        selected == DrcTarget::MSX2,
+                    );
+                    create_platform_button(
+                        parent,
+                        "PC",
+                        "🖥️",
+                        DrcTarget::PC,
+                        selected == DrcTarget::PC,
+                    );
+
+                    // Row 3
+                    create_platform_button(
+                        parent,
+                        "Amiga",
+                        "💻",
+                        DrcTarget::Amiga,
+                        selected == DrcTarget::Amiga,
+                    );
+                    create_platform_button(
+                        parent,
+                        "Atari ST",
+                        "🖥️",
+                        DrcTarget::AtariST,
+                        selected == DrcTarget::AtariST,
+                    );
+                    create_platform_button(
+                        parent,
+                        "HTML",
+                        "🌐",
+                        DrcTarget::HTML,
+                        selected == DrcTarget::HTML,
+                    );
+
+                    // Row 4
+                    create_platform_button(
+                        parent,
+                        "PCW",
+                        "🖨️",
+                        DrcTarget::PCW,
+                        selected == DrcTarget::PCW,
+                    );
+                    create_platform_button(
+                        parent,
+                        "Plus/4",
+                        "🎮",
+                        DrcTarget::CommodorePlus4,
+                        selected == DrcTarget::CommodorePlus4,
+                    );
+                });
+
             // Build & Test button
             parent
                 .spawn((
@@ -470,6 +636,30 @@ pub fn handle_preview_daad_button(
     }
 }
 
+/// Handle platform button clicks - switch target platform
+pub fn handle_platform_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &PlatformButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            info!("Selected platform: {:?}", button.target);
+            state.target_platform = button.target;
+
+            // Set default subtarget based on platform
+            state.target_subtarget = match button.target {
+                DrcTarget::ZXSpectrum => Some(DrcSubtarget::ZXPlus3),
+                DrcTarget::PC => Some(DrcSubtarget::PCVGA),
+                DrcTarget::MSX2 => Some(DrcSubtarget::MSX2Mode("5_8".to_string())),
+                _ => None,
+            };
+        }
+    }
+}
+
 /// Handle Build & Test button - compile with DRC
 pub fn handle_build_test_button(
     mut state: ResMut<BuilderState>,
@@ -505,8 +695,8 @@ pub fn handle_build_test_button(
                             // Compile the .sce file
                             match launcher.compile_sce_with_output(
                                 &PathBuf::from(&sce_path),
-                                DrcTarget::ZXSpectrum,
-                                None,
+                                state.target_platform,
+                                state.target_subtarget.clone(),
                                 None,
                             ) {
                                 Ok((json_path, output)) => {
@@ -556,3 +746,8 @@ pub(crate) struct PreviewDaadButton;
 
 #[derive(Component)]
 pub(crate) struct BuildTestButton;
+
+#[derive(Component)]
+pub(crate) struct PlatformButton {
+    pub target: DrcTarget,
+}

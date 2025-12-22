@@ -35,7 +35,7 @@ impl From<io::Error> for LauncherError {
 pub type LauncherResult<T> = Result<T, LauncherError>;
 
 /// DRC Compiler Target Platform
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DrcTarget {
     ZXSpectrum,
     AmstradCPC,

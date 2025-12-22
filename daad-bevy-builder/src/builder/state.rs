@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use crate::daad::game::DaadGame;
+use crate::launcher::{DrcTarget, DrcSubtarget};
 
 /// Builder application state
 #[derive(Resource)]
@@ -13,6 +14,8 @@ pub struct BuilderState {
     pub current_file_path: Option<String>,
     pub compilation_output: Option<String>,
     pub compilation_success: bool,
+    pub target_platform: DrcTarget,
+    pub target_subtarget: Option<DrcSubtarget>,
 }
 
 impl Default for BuilderState {
@@ -27,6 +30,8 @@ impl Default for BuilderState {
             current_file_path: None,
             compilation_output: None,
             compilation_success: false,
+            target_platform: DrcTarget::ZXSpectrum,
+            target_subtarget: Some(DrcSubtarget::ZXPlus3),
         }
     }
 }
