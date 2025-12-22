@@ -480,18 +480,19 @@ fn render_help_overlay(
                     position_type: PositionType::Absolute,
                     left: Val::Percent(50.0),
                     top: Val::Percent(50.0),
-                    width: Val::Px(600.0),
-                    height: Val::Px(500.0),
+                    width: Val::Px(700.0),
+                    max_height: Val::Px(700.0),
                     flex_direction: FlexDirection::Column,
                     padding: UiRect::all(Val::Px(25.0)),
-                    row_gap: Val::Px(12.0),
+                    row_gap: Val::Px(8.0),
                     border: UiRect::all(Val::Px(3.0)),
+                    overflow: Overflow::clip_y(),
                     ..default()
                 },
                 background_color: Color::rgba(0.08, 0.08, 0.12, 0.98).into(),
                 border_color: Color::rgb(0.4, 0.6, 0.9).into(),
                 transform: Transform::from_xyz(0.0, 0.0, 999.0)
-                    .with_translation(Vec3::new(-300.0, -250.0, 999.0)),
+                    .with_translation(Vec3::new(-350.0, -350.0, 999.0)),
                 ..default()
             },
             HelpOverlay,
@@ -524,14 +525,38 @@ fn render_help_overlay(
                 ("H / F1", "Toggle this help overlay"),
                 ("F2", "Toggle code viewer"),
                 ("F5", "Toggle preview mode"),
+                ("", ""),
                 ("Ctrl+S", "Save project to JSON"),
                 ("Ctrl+E", "Export to DAAD source code"),
+                ("Ctrl+N", "New project"),
+                ("", ""),
+                ("1-8", "Quick switch to panel (1=Info, 2=Locations, etc.)"),
+                ("Tab", "Next panel"),
+                ("Shift+Tab", "Previous panel"),
+                ("", ""),
+                ("Ctrl+Z", "Undo (coming soon)"),
+                ("Ctrl+Y", "Redo (coming soon)"),
+                ("Ctrl+C", "Copy (coming soon)"),
+                ("Ctrl+V", "Paste (coming soon)"),
+                ("Ctrl+D", "Duplicate (coming soon)"),
+                ("", ""),
                 ("Escape", "Close modals / Cancel"),
-                ("Enter", "Save in text modals (single-line)"),
-                ("Backspace", "Delete character in text modals"),
+                ("Enter", "Save in text modals"),
             ];
 
             for (key, description) in shortcuts {
+                // Skip empty entries (separators)
+                if key.is_empty() {
+                    parent.spawn(NodeBundle {
+                        style: Style {
+                            height: Val::Px(5.0),
+                            ..default()
+                        },
+                        ..default()
+                    });
+                    continue;
+                }
+
                 parent
                     .spawn(NodeBundle {
                         style: Style {
@@ -547,7 +572,7 @@ fn render_help_overlay(
                         row.spawn(NodeBundle {
                             style: Style {
                                 padding: UiRect::all(Val::Px(6.0)),
-                                min_width: Val::Px(100.0),
+                                min_width: Val::Px(130.0),
                                 justify_content: JustifyContent::Center,
                                 border: UiRect::all(Val::Px(1.0)),
                                 ..default()
@@ -674,5 +699,95 @@ fn handle_keyboard_shortcuts(
                 error!("❌ Failed to write DAAD source file: {}", e);
             }
         }
+    }
+
+    // Ctrl+N = New project
+    if keys.pressed(KeyCode::ControlLeft) && keys.just_pressed(KeyCode::N) {
+        if state.unsaved_changes {
+            warn!("⚠️ Unsaved changes exist. Save before creating new project.");
+            // TODO: Show confirmation modal
+        } else {
+            state.new_game("Untitled Adventure", "Unknown Author");
+            info!("✅ Created new project");
+        }
+    }
+
+    // Number keys 1-8 for quick panel switching (without Ctrl)
+    if !keys.pressed(KeyCode::ControlLeft) && !keys.pressed(KeyCode::AltLeft) {
+        if keys.just_pressed(KeyCode::Key1) {
+            state.select_panel(builder::state::Panel::GameInfo);
+        } else if keys.just_pressed(KeyCode::Key2) {
+            state.select_panel(builder::state::Panel::Locations);
+        } else if keys.just_pressed(KeyCode::Key3) {
+            state.select_panel(builder::state::Panel::Objects);
+        } else if keys.just_pressed(KeyCode::Key4) {
+            state.select_panel(builder::state::Panel::Rules);
+        } else if keys.just_pressed(KeyCode::Key5) {
+            state.select_panel(builder::state::Panel::Flags);
+        } else if keys.just_pressed(KeyCode::Key6) {
+            state.select_panel(builder::state::Panel::Messages);
+        } else if keys.just_pressed(KeyCode::Key7) {
+            state.select_panel(builder::state::Panel::Preview);
+        } else if keys.just_pressed(KeyCode::Key8) {
+            state.select_panel(builder::state::Panel::Export);
+        }
+    }
+
+    // Ctrl+Z = Undo (placeholder - will be implemented with undo/redo system)
+    if keys.pressed(KeyCode::ControlLeft) && keys.just_pressed(KeyCode::Z) {
+        info!("⏮ Undo requested (not yet implemented)");
+        // TODO: Implement undo system
+    }
+
+    // Ctrl+Y or Ctrl+Shift+Z = Redo (placeholder)
+    if keys.pressed(KeyCode::ControlLeft) &&
+       (keys.just_pressed(KeyCode::Y) ||
+        (keys.pressed(KeyCode::ShiftLeft) && keys.just_pressed(KeyCode::Z))) {
+        info!("⏭ Redo requested (not yet implemented)");
+        // TODO: Implement redo system
+    }
+
+    // Ctrl+C = Copy (placeholder - will be implemented with copy/paste system)
+    if keys.pressed(KeyCode::ControlLeft) && keys.just_pressed(KeyCode::C) {
+        info!("📋 Copy requested (not yet implemented)");
+        // TODO: Implement copy system
+    }
+
+    // Ctrl+V = Paste (placeholder)
+    if keys.pressed(KeyCode::ControlLeft) && keys.just_pressed(KeyCode::V) {
+        info!("📋 Paste requested (not yet implemented)");
+        // TODO: Implement paste system
+    }
+
+    // Ctrl+D = Duplicate selected item (placeholder)
+    if keys.pressed(KeyCode::ControlLeft) && keys.just_pressed(KeyCode::D) {
+        info!("📋 Duplicate requested (not yet implemented)");
+        // TODO: Implement duplicate system
+    }
+
+    // Tab = Next panel, Shift+Tab = Previous panel
+    if keys.just_pressed(KeyCode::Tab) {
+        use builder::state::Panel;
+        let panels = [
+            Panel::GameInfo,
+            Panel::Locations,
+            Panel::Objects,
+            Panel::Rules,
+            Panel::Flags,
+            Panel::Messages,
+            Panel::Preview,
+            Panel::Export,
+        ];
+
+        let current_idx = panels.iter().position(|&p| p == state.selected_panel).unwrap_or(0);
+        let next_idx = if keys.pressed(KeyCode::ShiftLeft) {
+            // Go backwards
+            if current_idx == 0 { panels.len() - 1 } else { current_idx - 1 }
+        } else {
+            // Go forwards
+            (current_idx + 1) % panels.len()
+        };
+
+        state.select_panel(panels[next_idx]);
     }
 }
