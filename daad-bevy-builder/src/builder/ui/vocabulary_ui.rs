@@ -4,10 +4,23 @@ use crate::daad::game::{VocabEntry, VocabType};
 use crate::daad::vocabulary_library;
 
 /// Resource to track vocabulary search and filter state
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct VocabularySearchState {
     pub search_query: String,
     pub active_filter: Option<VocabType>,
+    pub custom_word_input: String,
+    pub custom_word_type: VocabType,
+}
+
+impl Default for VocabularySearchState {
+    fn default() -> Self {
+        Self {
+            search_query: String::new(),
+            active_filter: None,
+            custom_word_input: String::new(),
+            custom_word_type: VocabType::Noun, // Default to Noun
+        }
+    }
 }
 
 /// Component tags for vocabulary UI elements
@@ -35,6 +48,17 @@ pub struct SearchInput;
 
 #[derive(Component)]
 pub struct ClearSearchButton;
+
+#[derive(Component)]
+pub struct CustomWordInputButton;
+
+#[derive(Component)]
+pub struct CustomWordTypeButton {
+    pub word_type: VocabType,
+}
+
+#[derive(Component)]
+pub struct AddCustomWordButton;
 
 /// Render the interactive vocabulary panel
 pub fn render_vocabulary_panel(parent: &mut ChildBuilder, state: &BuilderState, search_state: &VocabularySearchState) {
@@ -402,6 +426,177 @@ pub fn render_vocabulary_panel(parent: &mut ChildBuilder, state: &BuilderState, 
         },
     ));
 
+    // Custom Word Input section
+    parent.spawn(TextBundle::from_section(
+        "\n✍️ Add Custom Word",
+        TextStyle {
+            font_size: 18.0,
+            color: Color::rgb(0.9, 0.7, 1.0),
+            ..default()
+        },
+    ));
+
+    parent.spawn(TextBundle::from_section(
+        "Create your own custom vocabulary words:",
+        TextStyle {
+            font_size: 13.0,
+            color: Color::rgb(0.7, 0.7, 0.7),
+            ..default()
+        },
+    ));
+
+    // Word input and type selector
+    parent.spawn(NodeBundle {
+        style: Style {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(10.0),
+            margin: UiRect::vertical(Val::Px(10.0)),
+            ..default()
+        },
+        ..default()
+    })
+    .with_children(|col| {
+        // Word input button
+        col.spawn((
+            ButtonBundle {
+                style: Style {
+                    padding: UiRect::axes(Val::Px(12.0), Val::Px(8.0)),
+                    min_width: Val::Px(300.0),
+                    border: UiRect::all(Val::Px(2.0)),
+                    ..default()
+                },
+                background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                border_color: Color::rgb(0.6, 0.4, 0.8).into(),
+                ..default()
+            },
+            CustomWordInputButton,
+        ))
+        .with_children(|button| {
+            let display_text = if search_state.custom_word_input.is_empty() {
+                "Click to enter custom word...".to_string()
+            } else {
+                format!("✍️ {}", search_state.custom_word_input.to_uppercase())
+            };
+
+            button.spawn(TextBundle::from_section(
+                display_text,
+                TextStyle {
+                    font_size: 14.0,
+                    color: if search_state.custom_word_input.is_empty() {
+                        Color::rgb(0.5, 0.5, 0.5)
+                    } else {
+                        Color::rgb(0.9, 0.8, 1.0)
+                    },
+                    ..default()
+                },
+            ));
+        });
+
+        // Word type selector
+        col.spawn(TextBundle::from_section(
+            "Select word type:",
+            TextStyle {
+                font_size: 12.0,
+                color: Color::rgb(0.7, 0.7, 0.7),
+                ..default()
+            },
+        ));
+
+        col.spawn(NodeBundle {
+            style: Style {
+                display: Display::Flex,
+                flex_direction: FlexDirection::Row,
+                flex_wrap: FlexWrap::Wrap,
+                column_gap: Val::Px(6.0),
+                row_gap: Val::Px(6.0),
+                ..default()
+            },
+            ..default()
+        })
+        .with_children(|type_row| {
+            for (word_type, label, color) in [
+                (VocabType::Verb, "Verb", Color::rgb(0.9, 0.6, 0.6)),
+                (VocabType::Noun, "Noun", Color::rgb(0.6, 0.9, 0.6)),
+                (VocabType::Adjective, "Adjective", Color::rgb(0.6, 0.6, 0.9)),
+                (VocabType::Adverb, "Adverb", Color::rgb(0.9, 0.9, 0.6)),
+                (VocabType::Preposition, "Preposition", Color::rgb(0.9, 0.6, 0.9)),
+                (VocabType::Pronoun, "Pronoun", Color::rgb(0.6, 0.9, 0.9)),
+                (VocabType::Conjugation, "Conjugation", Color::rgb(0.8, 0.8, 0.8)),
+            ] {
+                let is_selected = search_state.custom_word_type == word_type;
+                type_row.spawn((
+                    ButtonBundle {
+                        style: Style {
+                            padding: UiRect::axes(Val::Px(10.0), Val::Px(5.0)),
+                            border: UiRect::all(Val::Px(2.0)),
+                            ..default()
+                        },
+                        background_color: if is_selected {
+                            color.into()
+                        } else {
+                            Color::rgb(0.2, 0.2, 0.25).into()
+                        },
+                        border_color: if is_selected {
+                            Color::rgb(1.0, 1.0, 1.0).into()
+                        } else {
+                            Color::rgb(0.3, 0.3, 0.35).into()
+                        },
+                        ..default()
+                    },
+                    CustomWordTypeButton { word_type },
+                ))
+                .with_children(|btn| {
+                    btn.spawn(TextBundle::from_section(
+                        label,
+                        TextStyle {
+                            font_size: 11.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    ));
+                });
+            }
+        });
+
+        // Add custom word button
+        if !search_state.custom_word_input.is_empty() {
+            col.spawn((
+                ButtonBundle {
+                    style: Style {
+                        padding: UiRect::all(Val::Px(12.0)),
+                        margin: UiRect::top(Val::Px(8.0)),
+                        border: UiRect::all(Val::Px(2.0)),
+                        ..default()
+                    },
+                    background_color: Color::rgb(0.4, 0.6, 0.4).into(),
+                    border_color: Color::rgb(0.5, 0.8, 0.5).into(),
+                    ..default()
+                },
+                AddCustomWordButton,
+            ))
+            .with_children(|btn| {
+                btn.spawn(TextBundle::from_section(
+                    format!("➕ Add \"{}\" as {}", search_state.custom_word_input.to_uppercase(),
+                        match search_state.custom_word_type {
+                            VocabType::Verb => "Verb",
+                            VocabType::Noun => "Noun",
+                            VocabType::Adjective => "Adjective",
+                            VocabType::Adverb => "Adverb",
+                            VocabType::Preposition => "Preposition",
+                            VocabType::Pronoun => "Pronoun",
+                            VocabType::Conjugation => "Conjugation",
+                        }),
+                    TextStyle {
+                        font_size: 13.0,
+                        color: Color::WHITE,
+                        ..default()
+                    },
+                ));
+            });
+        }
+    });
+
     // Word library section
     parent.spawn(TextBundle::from_section(
         "\n📚 Word Library",
@@ -588,7 +783,7 @@ pub fn render_vocabulary_panel(parent: &mut ChildBuilder, state: &BuilderState, 
     ));
 
     parent.spawn(TextBundle::from_section(
-        "  • Custom word input coming soon!",
+        "  • Use custom word input to add any word not in the library",
         TextStyle {
             font_size: 12.0,
             color: Color::rgb(0.5, 0.7, 0.9),
@@ -750,6 +945,118 @@ pub fn process_vocabulary_search_modal(
         if !modal_state.current_value.is_empty() || !search_state.search_query.is_empty() {
             search_state.search_query = modal_state.current_value.clone();
             info!("Updated vocabulary search: {}", search_state.search_query);
+        }
+    }
+}
+
+/// System to handle clicking the custom word input button (opens text input modal)
+pub fn handle_custom_word_input_button(
+    mut modal_state: ResMut<super::components::TextInputModalState>,
+    search_state: Res<VocabularySearchState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<CustomWordInputButton>),
+    >,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            // Open text input modal for custom word
+            modal_state.open_single_line(
+                "Enter Custom Word",
+                &search_state.custom_word_input,
+                "Type your custom word (max 5 characters)...",
+                "custom_vocab_word"
+            );
+        }
+    }
+}
+
+/// System to process custom word text input from modal
+pub fn process_custom_word_input_modal(
+    mut search_state: ResMut<VocabularySearchState>,
+    modal_state: Res<super::components::TextInputModalState>,
+) {
+    // Check if modal was just closed with custom_vocab_word callback
+    if !modal_state.is_open && modal_state.callback_id.as_deref() == Some("custom_vocab_word") {
+        // Update custom word input (will be validated when adding)
+        search_state.custom_word_input = modal_state.current_value.trim().to_uppercase();
+        info!("Custom word input: {}", search_state.custom_word_input);
+    }
+}
+
+/// System to handle custom word type selection buttons
+pub fn handle_custom_word_type_button(
+    mut search_state: ResMut<VocabularySearchState>,
+    mut interaction_query: Query<
+        (&Interaction, &CustomWordTypeButton),
+        (Changed<Interaction>, With<Button>),
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            search_state.custom_word_type = button.word_type;
+            info!("Selected custom word type: {:?}", button.word_type);
+        }
+    }
+}
+
+/// System to handle adding custom word button
+pub fn handle_add_custom_word_button(
+    mut state: ResMut<BuilderState>,
+    mut search_state: ResMut<VocabularySearchState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<AddCustomWordButton>),
+    >,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            let word = search_state.custom_word_input.trim().to_uppercase();
+
+            // Validate word length (DAAD limit: 5 characters)
+            if word.is_empty() {
+                warn!("Cannot add empty word");
+                continue;
+            }
+
+            if word.len() > 5 {
+                warn!("Word '{}' is too long (max 5 characters). Truncating.", word);
+                search_state.custom_word_input = word[..5].to_string();
+                continue;
+            }
+
+            // Check if word already exists
+            if state.current_game.vocabulary.iter().any(|v| v.word == word) {
+                warn!("Word '{}' already exists in vocabulary", word);
+                continue;
+            }
+
+            // Check vocabulary limit (DAAD limit: 255 words)
+            if state.current_game.vocabulary.len() >= 255 {
+                warn!("Vocabulary is full (255 words max)");
+                continue;
+            }
+
+            // Find next available ID
+            let next_id = state.current_game.vocabulary
+                .iter()
+                .map(|v| v.id)
+                .max()
+                .map_or(0, |max_id| max_id + 1);
+
+            // Add custom word to vocabulary
+            state.current_game.vocabulary.push(VocabEntry {
+                word: word.clone(),
+                word_type: search_state.custom_word_type,
+                id: next_id,
+                translations: std::collections::HashMap::new(),
+            });
+
+            state.mark_dirty();
+            info!("✅ Added custom word '{}' as {:?} (ID: {})", word, search_state.custom_word_type, next_id);
+
+            // Clear custom word input for next entry
+            search_state.custom_word_input.clear();
         }
     }
 }

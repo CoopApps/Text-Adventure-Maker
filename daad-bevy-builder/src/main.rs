@@ -155,6 +155,10 @@ fn main() {
             builder::ui::vocabulary_ui::handle_clear_search_button,
             builder::ui::vocabulary_ui::handle_vocabulary_search_input,
             builder::ui::vocabulary_ui::process_vocabulary_search_modal,
+            builder::ui::vocabulary_ui::handle_custom_word_input_button,
+            builder::ui::vocabulary_ui::process_custom_word_input_modal,
+            builder::ui::vocabulary_ui::handle_custom_word_type_button,
+            builder::ui::vocabulary_ui::handle_add_custom_word_button,
         ))
         .add_systems(Update, (
             // Game Info systems
