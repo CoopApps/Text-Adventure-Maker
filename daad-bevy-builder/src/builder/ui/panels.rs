@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use crate::builder::state::{BuilderState, Panel};
+use crate::builder::debug::DebugState;
 use super::vocabulary_ui::render_vocabulary_panel;
 use super::game_info_ui::render_game_info_panel;
 use super::analytics_ui::render_analytics_panel;
@@ -8,6 +9,7 @@ use super::graphics_ui::render_graphics_panel;
 use super::playtest_ui::{render_playtest_panel, PlaytestState};
 use super::templates_ui::render_templates_panel;
 use super::dialogue_ui::{render_dialogue_panel, DialogueEditorState};
+use super::debug_ui::render_debug_panel;
 
 /// Render the active panel content
 pub fn render_active_panel(
@@ -15,6 +17,7 @@ pub fn render_active_panel(
     state: Res<BuilderState>,
     playtest: Res<PlaytestState>,
     dialogue: Res<DialogueEditorState>,
+    debug: Res<DebugState>,
     query: Query<Entity, With<PanelContent>>,
 ) {
     // Clean up old panel content
@@ -57,6 +60,7 @@ pub fn render_active_panel(
                 Panel::Dialogue => render_dialogue_panel(parent, &state, &dialogue),
                 Panel::Analytics => render_analytics_panel(parent, &state),
                 Panel::Messages => render_messages_panel(parent, &state),
+                Panel::Debug => render_debug_panel(parent, &state, &debug),
                 Panel::Preview => render_playtest_panel(parent, &state, &playtest),
                 Panel::Export => render_export_panel(parent, &state),
             }

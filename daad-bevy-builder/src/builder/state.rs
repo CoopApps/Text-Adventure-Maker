@@ -52,6 +52,7 @@ pub enum Panel {
     Dialogue,      // Conversation tree builder
     Analytics,     // Game statistics and analysis
     Messages,      // Message editor
+    Debug,         // Debug tools
     Preview,       // Test the game
     Export,        // Export options
 }
@@ -71,6 +72,7 @@ impl Panel {
             Panel::Dialogue => "Dialogue",
             Panel::Analytics => "Analytics",
             Panel::Messages => "Messages",
+            Panel::Debug => "Debug",
             Panel::Preview => "Preview",
             Panel::Export => "Export",
         }
@@ -90,6 +92,7 @@ impl Panel {
             Panel::Dialogue => "🗣️",
             Panel::Analytics => "📊",
             Panel::Messages => "💬",
+            Panel::Debug => "🔍",
             Panel::Preview => "▶️",
             Panel::Export => "💾",
         }

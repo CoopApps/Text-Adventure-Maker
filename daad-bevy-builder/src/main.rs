@@ -19,6 +19,7 @@ fn main() {
         .init_resource::<builder::state::BuilderState>()
         .init_resource::<builder::ui::playtest_ui::PlaytestState>()
         .init_resource::<builder::ui::dialogue_ui::DialogueEditorState>()
+        .init_resource::<builder::debug::DebugState>()
         .add_systems(Startup, setup)
         .add_systems(Update, (
             builder::ui::main_menu::render_menu,
@@ -118,6 +119,16 @@ fn main() {
             builder::ui::dialogue_ui::handle_add_node_button,
             builder::ui::dialogue_ui::handle_generate_dialogue_rules_button,
             builder::ui::dialogue_ui::handle_back_to_tree_list_button,
+        ))
+        .add_systems(Update, (
+            // Debug systems
+            builder::ui::debug_ui::handle_toggle_debug_button,
+            builder::ui::debug_ui::handle_continue_button,
+            builder::ui::debug_ui::handle_step_over_button,
+            builder::ui::debug_ui::handle_step_into_button,
+            builder::ui::debug_ui::handle_clear_trace_button,
+            builder::ui::debug_ui::handle_toggle_breakpoint_button,
+            builder::ui::debug_ui::handle_toggle_watch_flag_button,
         ))
         .run();
 }

@@ -12,6 +12,7 @@ pub mod graphics_ui;
 pub mod playtest_ui;
 pub mod templates_ui;
 pub mod dialogue_ui;
+pub mod debug_ui;
 
 pub use export_ui::*;
 pub use vocabulary_ui::*;
@@ -22,3 +23,4 @@ pub use graphics_ui::*;
 pub use playtest_ui::*;
 pub use templates_ui::*;
 pub use dialogue_ui::*;
+pub use debug_ui::*;
