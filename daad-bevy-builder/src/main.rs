@@ -28,6 +28,7 @@ fn main() {
         .init_resource::<builder::ui::components::TooltipState>()
         .init_resource::<builder::ui::components::NotificationManager>()
         .init_resource::<builder::ui::components::UndoRedoManager>()
+        .init_resource::<builder::ui::components::ClipboardManager>()
         .init_resource::<builder::ui::vocabulary_ui::VocabularySearchState>()
         .init_resource::<builder::debug::DebugState>()
         .add_systems(Startup, setup)
@@ -553,11 +554,11 @@ fn render_help_overlay(
                 ("Tab", "Next panel"),
                 ("Shift+Tab", "Previous panel"),
                 ("", ""),
-                ("Ctrl+Z", "Undo (coming soon)"),
-                ("Ctrl+Y", "Redo (coming soon)"),
-                ("Ctrl+C", "Copy (coming soon)"),
-                ("Ctrl+V", "Paste (coming soon)"),
-                ("Ctrl+D", "Duplicate (coming soon)"),
+                ("Ctrl+Z", "Undo last change"),
+                ("Ctrl+Y", "Redo last undone change"),
+                ("Ctrl+C", "Copy selected entity"),
+                ("Ctrl+V", "Paste from clipboard"),
+                ("Ctrl+D", "Duplicate selected entity"),
                 ("", ""),
                 ("Escape", "Close modals / Cancel"),
                 ("Enter", "Save in text modals"),
@@ -651,6 +652,7 @@ fn handle_keyboard_shortcuts(
     mut state: ResMut<builder::state::BuilderState>,
     mut notification_manager: ResMut<builder::ui::components::NotificationManager>,
     mut undo_manager: ResMut<builder::ui::components::UndoRedoManager>,
+    mut clipboard_manager: ResMut<builder::ui::components::ClipboardManager>,
     time: Res<Time>,
 ) {
     let current_time = time.elapsed_seconds_f64();
@@ -816,22 +818,319 @@ fn handle_keyboard_shortcuts(
         }
     }
 
-    // Ctrl+C = Copy (placeholder - will be implemented with copy/paste system)
+    // Ctrl+C = Copy selected entity
     if keys.pressed(KeyCode::ControlLeft) && keys.just_pressed(KeyCode::C) {
-        info!("📋 Copy requested (not yet implemented)");
-        // TODO: Implement copy system
+        use builder::ui::components::ClipboardContent;
+        use builder::state::EditMode;
+
+        match &state.editing {
+            Some(EditMode::Location(id)) => {
+                if let Some(location) = state.current_game.locations.iter().find(|l| l.id == *id) {
+                    clipboard_manager.copy(ClipboardContent::Location(location.clone()));
+                    notification_manager.add_success(
+                        format!("📋 Copied location '{}'", location.name),
+                        current_time
+                    );
+                }
+            }
+            Some(EditMode::Object(id)) => {
+                if let Some(object) = state.current_game.objects.iter().find(|o| o.id == *id) {
+                    clipboard_manager.copy(ClipboardContent::Object(object.clone()));
+                    notification_manager.add_success(
+                        format!("📋 Copied object '{}'", object.name),
+                        current_time
+                    );
+                }
+            }
+            Some(EditMode::Rule(idx)) => {
+                if let Some(rule) = state.current_game.rules.get(*idx) {
+                    clipboard_manager.copy(ClipboardContent::Rule(rule.clone()));
+                    notification_manager.add_success(
+                        format!("📋 Copied rule '{}'", rule.name),
+                        current_time
+                    );
+                }
+            }
+            Some(EditMode::Flag(id)) => {
+                if let Some(flag) = state.current_game.flags.iter().find(|f| f.id == *id) {
+                    clipboard_manager.copy(ClipboardContent::Flag(flag.clone()));
+                    notification_manager.add_success(
+                        format!("📋 Copied flag '{}'", flag.name),
+                        current_time
+                    );
+                }
+            }
+            Some(EditMode::Message(idx)) => {
+                if let Some(message) = state.current_game.messages.get(*idx) {
+                    clipboard_manager.copy(ClipboardContent::Message(message.clone()));
+                    let preview = if message.len() > 30 {
+                        format!("{}...", &message[..30])
+                    } else {
+                        message.clone()
+                    };
+                    notification_manager.add_success(
+                        format!("📋 Copied message '{}'", preview),
+                        current_time
+                    );
+                }
+            }
+            _ => {
+                notification_manager.add_warning(
+                    "No entity selected. Select an entity first to copy it.",
+                    current_time
+                );
+            }
+        }
     }
 
-    // Ctrl+V = Paste (placeholder)
+    // Ctrl+V = Paste from clipboard
     if keys.pressed(KeyCode::ControlLeft) && keys.just_pressed(KeyCode::V) {
-        info!("📋 Paste requested (not yet implemented)");
-        // TODO: Implement paste system
+        use builder::ui::components::{ClipboardContent, ChangeRecord};
+
+        if let Some(content) = clipboard_manager.peek() {
+            match content {
+                ClipboardContent::Location(location) => {
+                    // Find next available location ID
+                    let next_id = state.current_game.locations
+                        .iter()
+                        .map(|l| l.id)
+                        .max()
+                        .map_or(0, |max_id| max_id + 1);
+
+                    let mut new_location = location.clone();
+                    new_location.id = next_id;
+                    new_location.name = format!("{} (Copy)", new_location.name);
+
+                    // Record for undo
+                    undo_manager.push_change(ChangeRecord::LocationAdded {
+                        location: new_location.clone(),
+                    });
+
+                    state.current_game.locations.push(new_location.clone());
+                    state.mark_dirty();
+                    notification_manager.add_success(
+                        format!("📋 Pasted location '{}'", new_location.name),
+                        current_time
+                    );
+                }
+                ClipboardContent::Object(object) => {
+                    // Find next available object ID
+                    let next_id = state.current_game.objects
+                        .iter()
+                        .map(|o| o.id)
+                        .max()
+                        .map_or(0, |max_id| max_id + 1);
+
+                    let mut new_object = object.clone();
+                    new_object.id = next_id;
+                    new_object.name = format!("{} (Copy)", new_object.name);
+
+                    // Record for undo
+                    undo_manager.push_change(ChangeRecord::ObjectAdded {
+                        object: new_object.clone(),
+                    });
+
+                    state.current_game.objects.push(new_object.clone());
+                    state.mark_dirty();
+                    notification_manager.add_success(
+                        format!("📋 Pasted object '{}'", new_object.name),
+                        current_time
+                    );
+                }
+                ClipboardContent::Rule(rule) => {
+                    let mut new_rule = rule.clone();
+                    new_rule.id = state.current_game.rules.len();
+                    new_rule.name = format!("{} (Copy)", new_rule.name);
+
+                    // Record for undo
+                    undo_manager.push_change(ChangeRecord::RuleAdded {
+                        rule: new_rule.clone(),
+                    });
+
+                    state.current_game.rules.push(new_rule.clone());
+                    state.mark_dirty();
+                    notification_manager.add_success(
+                        format!("📋 Pasted rule '{}'", new_rule.name),
+                        current_time
+                    );
+                }
+                ClipboardContent::Flag(flag) => {
+                    // Find next available flag ID
+                    let next_id = state.current_game.flags
+                        .iter()
+                        .map(|f| f.id)
+                        .max()
+                        .map_or(0, |max_id| max_id + 1);
+
+                    let mut new_flag = flag.clone();
+                    new_flag.id = next_id;
+                    new_flag.name = format!("{} (Copy)", new_flag.name);
+
+                    // Record for undo
+                    undo_manager.push_change(ChangeRecord::FlagAdded {
+                        flag: new_flag.clone(),
+                    });
+
+                    state.current_game.flags.push(new_flag.clone());
+                    state.mark_dirty();
+                    notification_manager.add_success(
+                        format!("📋 Pasted flag '{}'", new_flag.name),
+                        current_time
+                    );
+                }
+                ClipboardContent::Message(message) => {
+                    let index = state.current_game.messages.len();
+
+                    // Record for undo
+                    undo_manager.push_change(ChangeRecord::MessageAdded {
+                        message: message.clone(),
+                    });
+
+                    state.current_game.messages.push(message.clone());
+                    state.mark_dirty();
+
+                    let preview = if message.len() > 30 {
+                        format!("{}...", &message[..30])
+                    } else {
+                        message.clone()
+                    };
+                    notification_manager.add_success(
+                        format!("📋 Pasted message '{}'", preview),
+                        current_time
+                    );
+                }
+            }
+        } else {
+            notification_manager.add_warning(
+                "Nothing to paste. Copy an entity first (Ctrl+C).",
+                current_time
+            );
+        }
     }
 
-    // Ctrl+D = Duplicate selected item (placeholder)
+    // Ctrl+D = Duplicate selected item (copy + paste in one action)
     if keys.pressed(KeyCode::ControlLeft) && keys.just_pressed(KeyCode::D) {
-        info!("📋 Duplicate requested (not yet implemented)");
-        // TODO: Implement duplicate system
+        use builder::ui::components::{ClipboardContent, ChangeRecord};
+        use builder::state::EditMode;
+
+        match &state.editing {
+            Some(EditMode::Location(id)) => {
+                if let Some(location) = state.current_game.locations.iter().find(|l| l.id == *id).cloned() {
+                    let next_id = state.current_game.locations
+                        .iter()
+                        .map(|l| l.id)
+                        .max()
+                        .map_or(0, |max_id| max_id + 1);
+
+                    let mut new_location = location;
+                    new_location.id = next_id;
+                    new_location.name = format!("{} (Copy)", new_location.name);
+
+                    undo_manager.push_change(ChangeRecord::LocationAdded {
+                        location: new_location.clone(),
+                    });
+
+                    state.current_game.locations.push(new_location.clone());
+                    state.mark_dirty();
+                    notification_manager.add_success(
+                        format!("📋 Duplicated location '{}'", new_location.name),
+                        current_time
+                    );
+                }
+            }
+            Some(EditMode::Object(id)) => {
+                if let Some(object) = state.current_game.objects.iter().find(|o| o.id == *id).cloned() {
+                    let next_id = state.current_game.objects
+                        .iter()
+                        .map(|o| o.id)
+                        .max()
+                        .map_or(0, |max_id| max_id + 1);
+
+                    let mut new_object = object;
+                    new_object.id = next_id;
+                    new_object.name = format!("{} (Copy)", new_object.name);
+
+                    undo_manager.push_change(ChangeRecord::ObjectAdded {
+                        object: new_object.clone(),
+                    });
+
+                    state.current_game.objects.push(new_object.clone());
+                    state.mark_dirty();
+                    notification_manager.add_success(
+                        format!("📋 Duplicated object '{}'", new_object.name),
+                        current_time
+                    );
+                }
+            }
+            Some(EditMode::Rule(idx)) => {
+                if let Some(rule) = state.current_game.rules.get(*idx).cloned() {
+                    let mut new_rule = rule;
+                    new_rule.id = state.current_game.rules.len();
+                    new_rule.name = format!("{} (Copy)", new_rule.name);
+
+                    undo_manager.push_change(ChangeRecord::RuleAdded {
+                        rule: new_rule.clone(),
+                    });
+
+                    state.current_game.rules.push(new_rule.clone());
+                    state.mark_dirty();
+                    notification_manager.add_success(
+                        format!("📋 Duplicated rule '{}'", new_rule.name),
+                        current_time
+                    );
+                }
+            }
+            Some(EditMode::Flag(id)) => {
+                if let Some(flag) = state.current_game.flags.iter().find(|f| f.id == *id).cloned() {
+                    let next_id = state.current_game.flags
+                        .iter()
+                        .map(|f| f.id)
+                        .max()
+                        .map_or(0, |max_id| max_id + 1);
+
+                    let mut new_flag = flag;
+                    new_flag.id = next_id;
+                    new_flag.name = format!("{} (Copy)", new_flag.name);
+
+                    undo_manager.push_change(ChangeRecord::FlagAdded {
+                        flag: new_flag.clone(),
+                    });
+
+                    state.current_game.flags.push(new_flag.clone());
+                    state.mark_dirty();
+                    notification_manager.add_success(
+                        format!("📋 Duplicated flag '{}'", new_flag.name),
+                        current_time
+                    );
+                }
+            }
+            Some(EditMode::Message(idx)) => {
+                if let Some(message) = state.current_game.messages.get(*idx).cloned() {
+                    undo_manager.push_change(ChangeRecord::MessageAdded {
+                        message: message.clone(),
+                    });
+
+                    state.current_game.messages.push(message.clone());
+                    state.mark_dirty();
+
+                    let preview = if message.len() > 30 {
+                        format!("{}...", &message[..30])
+                    } else {
+                        message.clone()
+                    };
+                    notification_manager.add_success(
+                        format!("📋 Duplicated message '{}'", preview),
+                        current_time
+                    );
+                }
+            }
+            _ => {
+                notification_manager.add_warning(
+                    "No entity selected. Select an entity first to duplicate it.",
+                    current_time
+                );
+            }
+        }
     }
 
     // Tab = Next panel, Shift+Tab = Previous panel

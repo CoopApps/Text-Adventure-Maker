@@ -2901,6 +2901,70 @@ impl ChangeRecord {
     }
 }
 
+// ============================================================================
+// CLIPBOARD SYSTEM
+// ============================================================================
+
+/// Clipboard content for copy/paste operations
+#[derive(Clone, Debug)]
+pub enum ClipboardContent {
+    Location(crate::daad::types::Location),
+    Object(crate::daad::types::Object),
+    Rule(crate::daad::types::Rule),
+    Flag(crate::daad::types::Flag),
+    Message(String),
+}
+
+/// Clipboard manager resource for copy/paste operations
+#[derive(Resource, Default)]
+pub struct ClipboardManager {
+    content: Option<ClipboardContent>,
+}
+
+impl ClipboardManager {
+    /// Copy content to clipboard
+    pub fn copy(&mut self, content: ClipboardContent) {
+        self.content = Some(content);
+    }
+
+    /// Check if clipboard has content
+    pub fn has_content(&self) -> bool {
+        self.content.is_some()
+    }
+
+    /// Get clipboard content without removing it
+    pub fn peek(&self) -> Option<&ClipboardContent> {
+        self.content.as_ref()
+    }
+
+    /// Clear clipboard
+    pub fn clear(&mut self) {
+        self.content = None;
+    }
+
+    /// Get a description of the clipboard content
+    pub fn description(&self) -> Option<String> {
+        self.content.as_ref().map(|content| match content {
+            ClipboardContent::Location(loc) => format!("Location '{}'", loc.name),
+            ClipboardContent::Object(obj) => format!("Object '{}'", obj.name),
+            ClipboardContent::Rule(rule) => format!("Rule '{}'", rule.name),
+            ClipboardContent::Flag(flag) => format!("Flag '{}'", flag.name),
+            ClipboardContent::Message(msg) => {
+                let preview = if msg.len() > 30 {
+                    format!("{}...", &msg[..30])
+                } else {
+                    msg.clone()
+                };
+                format!("Message '{}'", preview)
+            }
+        })
+    }
+}
+
+// ============================================================================
+// UNDO/REDO SYSTEM
+// ============================================================================
+
 /// Undo/Redo manager resource
 #[derive(Resource)]
 pub struct UndoRedoManager {
