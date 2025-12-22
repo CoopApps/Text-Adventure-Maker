@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use crate::builder::state::BuilderState;
+use crate::daad::game::Language;
 
 /// Component tags for game info UI elements
 #[derive(Component)]
@@ -228,6 +229,113 @@ pub fn render_game_info_panel(parent: &mut ChildBuilder, state: &BuilderState) {
             ));
         });
     });
+
+    // Multi-language section
+    parent.spawn(TextBundle::from_section(
+        "\n\n🌍 Languages",
+        TextStyle {
+            font_size: 20.0,
+            color: Color::rgb(0.7, 0.9, 1.0),
+            ..default()
+        },
+    ));
+
+    parent.spawn(TextBundle::from_section(
+        format!("Default: {} {}",
+            state.current_game.default_language.flag_emoji(),
+            state.current_game.default_language.display_name()),
+        TextStyle {
+            font_size: 14.0,
+            color: Color::rgb(0.7, 0.9, 0.7),
+            ..default()
+        },
+    ));
+
+    parent.spawn(TextBundle::from_section(
+        format!("Supported: {} languages", state.current_game.supported_languages.len()),
+        TextStyle {
+            font_size: 13.0,
+            color: Color::rgb(0.6, 0.6, 0.7),
+            ..default()
+        },
+    ));
+
+    // Language grid
+    parent.spawn(NodeBundle {
+        style: Style {
+            display: Display::Flex,
+            flex_wrap: FlexWrap::Wrap,
+            column_gap: Val::Px(8.0),
+            row_gap: Val::Px(8.0),
+            padding: UiRect::all(Val::Px(12.0)),
+            ..default()
+        },
+        ..default()
+    })
+    .with_children(|container| {
+        for lang in Language::all() {
+            let is_supported = state.current_game.supported_languages.contains(&lang);
+            let is_default = state.current_game.default_language == lang;
+
+            container.spawn(NodeBundle {
+                style: Style {
+                    padding: UiRect::all(Val::Px(10.0)),
+                    ..default()
+                },
+                background_color: if is_default {
+                    Color::rgb(0.3, 0.6, 0.4).into()  // Green for default
+                } else if is_supported {
+                    Color::rgb(0.2, 0.3, 0.4).into()  // Blue for supported
+                } else {
+                    Color::rgb(0.15, 0.15, 0.2).into()  // Gray for unsupported
+                },
+                ..default()
+            })
+            .with_children(|card| {
+                card.spawn(TextBundle::from_section(
+                    format!("{} {}",
+                        lang.flag_emoji(),
+                        lang.display_name()),
+                    TextStyle {
+                        font_size: 13.0,
+                        color: if is_supported {
+                            Color::WHITE
+                        } else {
+                            Color::rgb(0.5, 0.5, 0.5)
+                        },
+                        ..default()
+                    },
+                ));
+            });
+        }
+    });
+
+    parent.spawn(TextBundle::from_section(
+        "\n💡 Language Support:",
+        TextStyle {
+            font_size: 13.0,
+            color: Color::rgb(0.7, 0.7, 0.8),
+            ..default()
+        },
+    ));
+
+    parent.spawn(TextBundle::from_section(
+        "  • Vocabulary can be translated per language",
+        TextStyle {
+            font_size: 12.0,
+            color: Color::rgb(0.6, 0.6, 0.7),
+            ..default()
+        },
+    ));
+
+    parent.spawn(TextBundle::from_section(
+        "  • Export generates separate .SCE files per language",
+        TextStyle {
+            font_size: 12.0,
+            color: Color::rgb(0.6, 0.6, 0.7),
+            ..default()
+        },
+    ));
 
     // Statistics section
     parent.spawn(TextBundle::from_section(
