@@ -659,17 +659,49 @@ impl DaadCodeGenerator {
             ConditionType::ObjectPresent { object_id } => {
                 format!("PRESENT {}", object_id)
             }
+            ConditionType::ObjectAbsent { object_id } => {
+                format!("ABSENT {}", object_id)
+            }
             ConditionType::ObjectCarried { object_id } => {
                 format!("CARRIED {}", object_id)
             }
+            ConditionType::ObjectNotCarried { object_id } => {
+                format!("NOTCARR {}", object_id)
+            }
             ConditionType::ObjectWorn { object_id } => {
                 format!("WORN {}", object_id)
+            }
+            ConditionType::ObjectNotWorn { object_id } => {
+                format!("NOTWORN {}", object_id)
             }
             ConditionType::ObjectAt {
                 object_id,
                 location_id,
             } => {
                 format!("ISAT {} {}", object_id, location_id)
+            }
+            ConditionType::ObjectNotAt {
+                object_id,
+                location_id,
+            } => {
+                format!("NOTAT {} {}", object_id, location_id)
+            }
+            ConditionType::ObjectExists { object_id } => {
+                format!("CREATE {}", object_id)
+            }
+            ConditionType::ObjectDestroyed { object_id } => {
+                format!("DESTROY {}", object_id)
+            }
+            ConditionType::ObjectWeightGreaterThan { object_id, weight } => {
+                format!("WEIGHT {} {}", object_id, weight)
+            }
+            ConditionType::ObjectIsContainer { object_id } => {
+                // Check object attribute bit for container
+                format!("ATGT {} 128", object_id)  // Container bit
+            }
+            ConditionType::ObjectIsWearable { object_id } => {
+                // Check object attribute bit for wearable
+                format!("ATGT {} 64", object_id)  // Wearable bit
             }
             ConditionType::FlagEquals { flag_id, value } => {
                 format!("EQ {} {}", Self::flag_name(*flag_id), value)
@@ -683,11 +715,38 @@ impl DaadCodeGenerator {
             ConditionType::FlagZero { flag_id } => {
                 format!("ZERO {}", Self::flag_name(*flag_id))
             }
+            ConditionType::FlagNotEquals { flag_id, value } => {
+                format!("NOTEQ {} {}", Self::flag_name(*flag_id), value)
+            }
+            ConditionType::FlagNotZero { flag_id } => {
+                format!("NOTZERO {}", Self::flag_name(*flag_id))
+            }
+            ConditionType::FlagsSame { flag1, flag2 } => {
+                format!("SAME {} {}", Self::flag_name(*flag1), Self::flag_name(*flag2))
+            }
+            ConditionType::FlagsNotSame { flag1, flag2 } => {
+                format!("NOTSAME {} {}", Self::flag_name(*flag1), Self::flag_name(*flag2))
+            }
             ConditionType::VerbIs { verb } => {
                 format!("VERB {}", verb)
             }
             ConditionType::NounIs { noun } => {
                 format!("NOUN {}", noun)
+            }
+            ConditionType::Adject1Is { adjective } => {
+                format!("ADJECT1 {}", adjective)
+            }
+            ConditionType::AdverbIs { adverb } => {
+                format!("ADVERB {}", adverb)
+            }
+            ConditionType::PrepIs { preposition } => {
+                format!("PREP {}", preposition)
+            }
+            ConditionType::Noun2Is { noun } => {
+                format!("NOUN2 {}", noun)
+            }
+            ConditionType::Adject2Is { adjective } => {
+                format!("ADJECT2 {}", adjective)
             }
             ConditionType::IsFirstTurn => {
                 format!("EQ fTurns 0")
@@ -698,11 +757,36 @@ impl DaadCodeGenerator {
             ConditionType::ScoreGreaterThan { score } => {
                 format!("GT fScore {}", score)
             }
+            ConditionType::TurnCountEquals { turns } => {
+                format!("EQ fTurns {}", turns)
+            }
+            ConditionType::ScoreEquals { score } => {
+                format!("EQ fScore {}", score)
+            }
+            ConditionType::IsDark => {
+                format!("ISDARK")
+            }
+            ConditionType::IsLight => {
+                format!("ISLIGHT")
+            }
+            ConditionType::Chance { percentage } => {
+                format!("CHANCE {}", percentage)
+            }
+            ConditionType::Timeout => {
+                format!("TIMEOUT")
+            }
+            ConditionType::CarryWeight { weight } => {
+                format!("WEIGHT {}", weight)
+            }
+            ConditionType::MaxCarriedObjects { count } => {
+                format!("LT fObjectsCarried {}", count)
+            }
         }
     }
 
     fn generate_action(action: &Action, game: &DaadGame) -> String {
         match &action.action_type {
+            // Display actions
             ActionType::ShowMessage { text } => {
                 // Use MES for message index, or inline for direct text
                 format!("MESSAGE \"{}\"", text)
@@ -713,6 +797,20 @@ impl DaadCodeGenerator {
             ActionType::ClearScreen => {
                 "CLS".to_string()
             }
+            ActionType::NewLine => {
+                "NEWLINE".to_string()
+            }
+            ActionType::Tab => {
+                "TAB".to_string()
+            }
+            ActionType::WriteNumber { value } => {
+                format!("WRITELN {}", value)
+            }
+            ActionType::DisplayObjectName { object_id } => {
+                format!("PRINTAT {} @", object_id)
+            }
+
+            // Object actions
             ActionType::GetObject { object_id } => {
                 format!("GET {}", object_id)
             }
@@ -732,6 +830,35 @@ impl DaadCodeGenerator {
                 let loc_num = to_location.to_daad_location();
                 format!("PLACE {} {}", object_id, loc_num)
             }
+            ActionType::CreateObject { object_id } => {
+                format!("CREATE {}", object_id)
+            }
+            ActionType::DestroyObject { object_id } => {
+                format!("DESTROY {}", object_id)
+            }
+            ActionType::SwapObjects { object1, object2 } => {
+                format!("SWAP {} {}", object1, object2)
+            }
+            ActionType::PlaceObject { object_id, location_id } => {
+                format!("PLACE {} {}", object_id, location_id)
+            }
+            ActionType::AutoGet => {
+                "AUTOG".to_string()
+            }
+            ActionType::AutoDrop => {
+                "AUTOD".to_string()
+            }
+            ActionType::AutoWear => {
+                "AUTOW".to_string()
+            }
+            ActionType::AutoRemove => {
+                "AUTOR".to_string()
+            }
+            ActionType::ListObjects { location_id } => {
+                format!("LISTAT {}", location_id)
+            }
+
+            // Flag actions
             ActionType::SetFlag { flag_id, value } => {
                 format!("LET {} {}", Self::flag_name(*flag_id), value)
             }
@@ -741,9 +868,27 @@ impl DaadCodeGenerator {
             ActionType::DecrementFlag { flag_id } => {
                 format!("MINUS {} 1", Self::flag_name(*flag_id))
             }
+            ActionType::ClearFlag { flag_id } => {
+                format!("CLEAR {}", Self::flag_name(*flag_id))
+            }
+            ActionType::SetBit { flag_id } => {
+                format!("SET {}", Self::flag_name(*flag_id))
+            }
+            ActionType::AddToFlag { flag_id, value } => {
+                format!("PLUS {} {}", Self::flag_name(*flag_id), value)
+            }
+            ActionType::SubtractFromFlag { flag_id, value } => {
+                format!("MINUS {} {}", Self::flag_name(*flag_id), value)
+            }
+            ActionType::CopyFlag { dest_flag, source_flag } => {
+                format!("LET {} {}", Self::flag_name(*dest_flag), Self::flag_name(*source_flag))
+            }
+
+            // Movement
             ActionType::GoToLocation { location_id } => {
                 format!("GOTO {}", location_id)
             }
+            // Flow control
             ActionType::EndTurn => {
                 "DONE".to_string()
             }
@@ -753,8 +898,63 @@ impl DaadCodeGenerator {
             ActionType::SkipRules { count } => {
                 format!("SKIP {}", count)
             }
+            ActionType::OK => {
+                "OK".to_string()
+            }
+            ActionType::EndGame => {
+                "END".to_string()
+            }
+            ActionType::Restart => {
+                "RESTART".to_string()
+            }
+            ActionType::Pause { frames } => {
+                format!("PAUSE {}", frames)
+            }
+
+            // Score
             ActionType::AddScore { points } => {
                 format!("PLUS fScore {}", points)
+            }
+            ActionType::SubtractScore { points } => {
+                format!("MINUS fScore {}", points)
+            }
+
+            // Timeout
+            ActionType::SetTimeout { turns } => {
+                format!("TIMEOUT {}", turns)
+            }
+
+            // Save/Load
+            ActionType::SaveGame => {
+                "SAVE".to_string()
+            }
+            ActionType::LoadGame => {
+                "LOAD".to_string()
+            }
+            ActionType::RamSave => {
+                "RAMSAVE".to_string()
+            }
+            ActionType::RamLoad => {
+                "RAMLOAD".to_string()
+            }
+
+            // Sound/Graphics
+            ActionType::Beep { duration, pitch } => {
+                format!("BEEP {} {}", duration, pitch)
+            }
+            ActionType::Picture { picture_id } => {
+                format!("PICTURE {}", picture_id)
+            }
+
+            // Display attributes
+            ActionType::Border { color } => {
+                format!("BORDER {}", color)
+            }
+            ActionType::Paper { color } => {
+                format!("PAPER {}", color)
+            }
+            ActionType::Ink { color } => {
+                format!("INK {}", color)
             }
 
             // MALUVA Extension Actions (Module 36)
