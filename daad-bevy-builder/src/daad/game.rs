@@ -28,6 +28,24 @@ pub enum VocabType {
     Verb,
     Noun,
     Adjective,
+    Adverb,
+    Preposition,
+    Pronoun,
+    Conjugation,
+}
+
+impl VocabType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            VocabType::Verb => "verb",
+            VocabType::Noun => "noun",
+            VocabType::Adjective => "adjective",
+            VocabType::Adverb => "adverb",
+            VocabType::Preposition => "preposition",
+            VocabType::Pronoun => "pronoun",
+            VocabType::Conjugation => "conjugation",
+        }
+    }
 }
 
 impl Default for DaadGame {

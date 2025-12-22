@@ -57,6 +57,24 @@ impl Direction {
             Direction::Out => "OUT",
         }
     }
+
+    /// Short form for DAAD /CON section (N, S, E, W, etc.)
+    pub fn as_short_str(&self) -> &'static str {
+        match self {
+            Direction::North => "N",
+            Direction::South => "S",
+            Direction::East => "E",
+            Direction::West => "W",
+            Direction::Up => "U",
+            Direction::Down => "D",
+            Direction::Northeast => "NE",
+            Direction::Northwest => "NW",
+            Direction::Southeast => "SE",
+            Direction::Southwest => "SW",
+            Direction::In => "IN",
+            Direction::Out => "OUT",
+        }
+    }
 }
 
 /// Object with visual properties
