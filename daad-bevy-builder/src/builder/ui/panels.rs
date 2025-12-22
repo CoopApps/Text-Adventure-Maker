@@ -41,6 +41,7 @@ pub fn render_active_panel(
                 Panel::Rules => render_rules_panel(parent, &state),
                 Panel::Flags => render_flags_panel(parent, &state),
                 Panel::Vocabulary => render_vocabulary_panel(parent, &state),
+                Panel::Graphics => render_graphics_panel(parent, &state),
                 Panel::Messages => render_messages_panel(parent, &state),
                 Panel::Preview => render_preview_panel(parent, &state),
                 Panel::Export => render_export_panel(parent, &state),
@@ -419,6 +420,200 @@ fn render_vocabulary_panel(parent: &mut ChildBuilder, state: &BuilderState) {
         TextStyle {
             font_size: 12.0,
             color: Color::rgb(0.5, 0.5, 0.6),
+            ..default()
+        },
+    ));
+}
+
+fn render_graphics_panel(parent: &mut ChildBuilder, state: &BuilderState) {
+    use crate::daad::types::ActionType;
+    use std::collections::HashSet;
+
+    parent.spawn(TextBundle::from_section(
+        "🖼️ Graphics & Pictures",
+        TextStyle {
+            font_size: 24.0,
+            color: Color::WHITE,
+            ..default()
+        },
+    ));
+
+    parent.spawn(TextBundle::from_section(
+        "\nGraphics in your adventure game:",
+        TextStyle {
+            font_size: 16.0,
+            color: Color::rgb(0.8, 0.8, 0.8),
+            ..default()
+        },
+    ));
+
+    // Find all pictures referenced in rules
+    let mut picture_ids = HashSet::new();
+    let mut xpicture_ids = HashSet::new();
+
+    for rule in &state.current_game.rules {
+        for action in &rule.actions {
+            match &action.action_type {
+                ActionType::Picture { picture_id } => {
+                    picture_ids.insert(*picture_id);
+                }
+                ActionType::XPicture { picture_id } => {
+                    xpicture_ids.insert(*picture_id);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // Regular DAAD Pictures
+    if !picture_ids.is_empty() {
+        parent.spawn(TextBundle::from_section(
+            "\n📷 Regular Pictures (PICTURE)",
+            TextStyle {
+                font_size: 20.0,
+                color: Color::rgb(0.7, 0.9, 1.0),
+                ..default()
+            },
+        ));
+
+        let mut sorted_pictures: Vec<_> = picture_ids.iter().collect();
+        sorted_pictures.sort();
+
+        for pic_id in sorted_pictures {
+            parent.spawn(TextBundle::from_section(
+                format!("  • Picture {} (standard graphics)", pic_id),
+                TextStyle {
+                    font_size: 14.0,
+                    color: Color::rgb(0.7, 0.7, 0.7),
+                    ..default()
+                },
+            ));
+        }
+
+        parent.spawn(TextBundle::from_section(
+            format!("\n  Total: {} pictures", picture_ids.len()),
+            TextStyle {
+                font_size: 14.0,
+                color: Color::rgb(0.6, 0.8, 1.0),
+                ..default()
+            },
+        ));
+    }
+
+    // MALUVA Extended Pictures
+    if !xpicture_ids.is_empty() {
+        parent.spawn(TextBundle::from_section(
+            "\n🎨 MALUVA Pictures (XPICTURE)",
+            TextStyle {
+                font_size: 20.0,
+                color: Color::rgb(0.9, 0.7, 1.0),
+                ..default()
+            },
+        ));
+
+        parent.spawn(TextBundle::from_section(
+            "  (Extended graphics with MALUVA module)",
+            TextStyle {
+                font_size: 12.0,
+                color: Color::rgb(0.6, 0.6, 0.7),
+                ..default()
+            },
+        ));
+
+        let mut sorted_xpictures: Vec<_> = xpicture_ids.iter().collect();
+        sorted_xpictures.sort();
+
+        for pic_id in sorted_xpictures {
+            parent.spawn(TextBundle::from_section(
+                format!("  • Picture {} (MALUVA extended)", pic_id),
+                TextStyle {
+                    font_size: 14.0,
+                    color: Color::rgb(0.7, 0.7, 0.7),
+                    ..default()
+                },
+            ));
+        }
+
+        parent.spawn(TextBundle::from_section(
+            format!("\n  Total: {} MALUVA pictures", xpicture_ids.len()),
+            TextStyle {
+                font_size: 14.0,
+                color: Color::rgb(0.9, 0.7, 1.0),
+                ..default()
+            },
+        ));
+    }
+
+    if picture_ids.is_empty() && xpicture_ids.is_empty() {
+        parent.spawn(TextBundle::from_section(
+            "\nNo pictures currently used in this game.",
+            TextStyle {
+                font_size: 16.0,
+                color: Color::rgb(0.6, 0.6, 0.6),
+                ..default()
+            },
+        ));
+
+        parent.spawn(TextBundle::from_section(
+            "\nTo add pictures, use:",
+            TextStyle {
+                font_size: 14.0,
+                color: Color::rgb(0.7, 0.7, 0.7),
+                ..default()
+            },
+        ));
+
+        parent.spawn(TextBundle::from_section(
+            "  • PICTURE action for standard graphics",
+            TextStyle {
+                font_size: 13.0,
+                color: Color::rgb(0.6, 0.6, 0.6),
+                ..default()
+            },
+        ));
+
+        parent.spawn(TextBundle::from_section(
+            "  • XPICTURE action for MALUVA extended graphics",
+            TextStyle {
+                font_size: 13.0,
+                color: Color::rgb(0.6, 0.6, 0.6),
+                ..default()
+            },
+        ));
+    }
+
+    parent.spawn(TextBundle::from_section(
+        "\n\n💡 Graphics Info:",
+        TextStyle {
+            font_size: 16.0,
+            color: Color::rgb(0.9, 0.9, 0.6),
+            ..default()
+        },
+    ));
+
+    parent.spawn(TextBundle::from_section(
+        "  • DAAD supports 0-255 picture slots",
+        TextStyle {
+            font_size: 13.0,
+            color: Color::rgb(0.6, 0.6, 0.6),
+            ..default()
+        },
+    ));
+
+    parent.spawn(TextBundle::from_section(
+        "  • MALUVA (Module 36) adds extended graphics support",
+        TextStyle {
+            font_size: 13.0,
+            color: Color::rgb(0.6, 0.6, 0.6),
+            ..default()
+        },
+    ));
+
+    parent.spawn(TextBundle::from_section(
+        "  • Picture files vary by platform (PCX, SCR, etc.)",
+        TextStyle {
+            font_size: 13.0,
+            color: Color::rgb(0.6, 0.6, 0.6),
             ..default()
         },
     ));

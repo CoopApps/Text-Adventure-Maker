@@ -46,6 +46,7 @@ pub enum Panel {
     Rules,         // Rule/logic editor
     Flags,         // Flag manager
     Vocabulary,    // Vocabulary/words editor
+    Graphics,      // Graphics/pictures manager
     Messages,      // Message editor
     Preview,       // Test the game
     Export,        // Export options
@@ -60,6 +61,7 @@ impl Panel {
             Panel::Rules => "Rules",
             Panel::Flags => "Flags",
             Panel::Vocabulary => "Vocabulary",
+            Panel::Graphics => "Graphics",
             Panel::Messages => "Messages",
             Panel::Preview => "Preview",
             Panel::Export => "Export",
@@ -74,6 +76,7 @@ impl Panel {
             Panel::Rules => "⚙️",
             Panel::Flags => "🚩",
             Panel::Vocabulary => "📖",
+            Panel::Graphics => "🖼️",
             Panel::Messages => "💬",
             Panel::Preview => "▶️",
             Panel::Export => "💾",
