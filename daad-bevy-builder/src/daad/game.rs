@@ -2,6 +2,69 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use super::types::*;
 
+/// Supported languages for multi-language games
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum Language {
+    English,
+    Spanish,
+    French,
+    German,
+    Italian,
+    Portuguese,
+}
+
+impl Language {
+    pub fn code(&self) -> &'static str {
+        match self {
+            Language::English => "en",
+            Language::Spanish => "es",
+            Language::French => "fr",
+            Language::German => "de",
+            Language::Italian => "it",
+            Language::Portuguese => "pt",
+        }
+    }
+
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Language::English => "English",
+            Language::Spanish => "Español",
+            Language::French => "Français",
+            Language::German => "Deutsch",
+            Language::Italian => "Italiano",
+            Language::Portuguese => "Português",
+        }
+    }
+
+    pub fn flag_emoji(&self) -> &'static str {
+        match self {
+            Language::English => "🇬🇧",
+            Language::Spanish => "🇪🇸",
+            Language::French => "🇫🇷",
+            Language::German => "🇩🇪",
+            Language::Italian => "🇮🇹",
+            Language::Portuguese => "🇵🇹",
+        }
+    }
+
+    pub fn all() -> Vec<Language> {
+        vec![
+            Language::English,
+            Language::Spanish,
+            Language::French,
+            Language::German,
+            Language::Italian,
+            Language::Portuguese,
+        ]
+    }
+}
+
+impl Default for Language {
+    fn default() -> Self {
+        Language::English
+    }
+}
+
 /// Complete DAAD game
 #[derive(Debug, Clone, Serialize, Deserialize, Resource)]
 pub struct DaadGame {
@@ -15,6 +78,10 @@ pub struct DaadGame {
     pub messages: Vec<String>,
     pub vocabulary: Vec<VocabEntry>,
     pub sounds: Vec<Sound>,
+
+    // Multi-language support
+    pub supported_languages: Vec<Language>,
+    pub default_language: Language,
 
     // MALUVA extension support
     pub maluva_enabled: bool,
@@ -78,9 +145,12 @@ impl MaluvaPlatform {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VocabEntry {
-    pub word: String,
+    pub word: String,  // Word in default language
     pub word_type: VocabType,
     pub id: u8,
+    /// Optional translations to other languages
+    #[serde(default)]
+    pub translations: std::collections::HashMap<Language, String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -189,29 +259,36 @@ impl Default for DaadGame {
                     word: "get".to_string(),
                     word_type: VocabType::Verb,
                     id: 10,
+                    translations: std::collections::HashMap::new(),
                 },
                 VocabEntry {
                     word: "take".to_string(),
                     word_type: VocabType::Verb,
                     id: 10,
+                    translations: std::collections::HashMap::new(),
                 },
                 VocabEntry {
                     word: "drop".to_string(),
                     word_type: VocabType::Verb,
                     id: 18,
+                    translations: std::collections::HashMap::new(),
                 },
                 VocabEntry {
                     word: "torch".to_string(),
                     word_type: VocabType::Noun,
                     id: 0,
+                    translations: std::collections::HashMap::new(),
                 },
                 VocabEntry {
                     word: "burning".to_string(),
                     word_type: VocabType::Adjective,
                     id: 0,
+                    translations: std::collections::HashMap::new(),
                 },
             ],
             sounds: vec![],
+            supported_languages: vec![Language::English],
+            default_language: Language::English,
             maluva_enabled: false,
             maluva_platform: MaluvaPlatform::None,
         }

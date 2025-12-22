@@ -318,6 +318,7 @@ pub fn handle_add_word_button(
                 word: button.word.clone(),
                 word_type: button.word_type,
                 id: next_id,
+                translations: std::collections::HashMap::new(),
             });
 
             info!("Added word '{}' to vocabulary (ID: {})", button.word, next_id);
