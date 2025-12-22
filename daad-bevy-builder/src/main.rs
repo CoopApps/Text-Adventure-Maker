@@ -79,6 +79,12 @@ fn main() {
             builder::ui::vocabulary_ui::handle_add_word_button,
             builder::ui::vocabulary_ui::handle_remove_word_button,
         ))
+        .add_systems(Update, (
+            // Game Info systems
+            builder::ui::game_info_ui::handle_edit_title_button,
+            builder::ui::game_info_ui::handle_edit_author_button,
+            builder::ui::game_info_ui::handle_edit_version_button,
+        ))
         .run();
 }
 

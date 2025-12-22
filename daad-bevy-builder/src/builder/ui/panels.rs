@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use crate::builder::state::{BuilderState, Panel};
 use super::vocabulary_ui::render_vocabulary_panel;
+use super::game_info_ui::render_game_info_panel;
 
 /// Render the active panel content
 pub fn render_active_panel(
@@ -48,89 +49,6 @@ pub fn render_active_panel(
                 Panel::Export => render_export_panel(parent, &state),
             }
         });
-}
-
-fn render_game_info_panel(parent: &mut ChildBuilder, state: &BuilderState) {
-    parent.spawn(TextBundle::from_section(
-        "📋 Game Information",
-        TextStyle {
-            font_size: 24.0,
-            color: Color::WHITE,
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        format!("Title: {}", state.current_game.title),
-        TextStyle {
-            font_size: 18.0,
-            color: Color::rgb(0.9, 0.9, 0.9),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        format!("Author: {}", state.current_game.author),
-        TextStyle {
-            font_size: 18.0,
-            color: Color::rgb(0.9, 0.9, 0.9),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        format!("Version: {}", state.current_game.version),
-        TextStyle {
-            font_size: 18.0,
-            color: Color::rgb(0.9, 0.9, 0.9),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        "\nStatistics:",
-        TextStyle {
-            font_size: 20.0,
-            color: Color::rgb(0.7, 0.9, 1.0),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        format!("📍 Locations: {}", state.current_game.locations.len()),
-        TextStyle {
-            font_size: 16.0,
-            color: Color::rgb(0.8, 0.8, 0.8),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        format!("📦 Objects: {}", state.current_game.objects.len()),
-        TextStyle {
-            font_size: 16.0,
-            color: Color::rgb(0.8, 0.8, 0.8),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        format!("⚙️ Rules: {}", state.current_game.rules.len()),
-        TextStyle {
-            font_size: 16.0,
-            color: Color::rgb(0.8, 0.8, 0.8),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        format!("🚩 Flags: {}", state.current_game.flags.len()),
-        TextStyle {
-            font_size: 16.0,
-            color: Color::rgb(0.8, 0.8, 0.8),
-            ..default()
-        },
-    ));
 }
 
 fn render_locations_panel(parent: &mut ChildBuilder, state: &BuilderState) {
