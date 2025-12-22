@@ -3,6 +3,13 @@ use crate::builder::state::BuilderState;
 use crate::daad::game::{VocabEntry, VocabType};
 use crate::daad::vocabulary_library;
 
+/// Resource to track vocabulary search and filter state
+#[derive(Resource, Default)]
+pub struct VocabularySearchState {
+    pub search_query: String,
+    pub active_filter: Option<VocabType>,
+}
+
 /// Component tags for vocabulary UI elements
 #[derive(Component)]
 pub struct AddWordButton {
@@ -23,8 +30,14 @@ pub struct WordTypeFilter {
     pub filter: Option<VocabType>,
 }
 
+#[derive(Component)]
+pub struct SearchInput;
+
+#[derive(Component)]
+pub struct ClearSearchButton;
+
 /// Render the interactive vocabulary panel
-pub fn render_vocabulary_panel(parent: &mut ChildBuilder, state: &BuilderState) {
+pub fn render_vocabulary_panel(parent: &mut ChildBuilder, state: &BuilderState, search_state: &VocabularySearchState) {
     parent.spawn(TextBundle::from_section(
         "📖 Vocabulary Manager",
         TextStyle {
@@ -52,6 +65,205 @@ pub fn render_vocabulary_panel(parent: &mut ChildBuilder, state: &BuilderState) 
         TextStyle {
             font_size: 16.0,
             color: memory_color,
+            ..default()
+        },
+    ));
+
+    // Search and Filter section
+    parent.spawn(TextBundle::from_section(
+        "🔍 Search & Filter",
+        TextStyle {
+            font_size: 18.0,
+            color: Color::rgb(0.9, 0.9, 0.6),
+            ..default()
+        },
+    ));
+
+    // Search input display
+    parent.spawn(NodeBundle {
+        style: Style {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Row,
+            align_items: AlignItems::Center,
+            column_gap: Val::Px(10.0),
+            margin: UiRect::vertical(Val::Px(8.0)),
+            ..default()
+        },
+        ..default()
+    })
+    .with_children(|row| {
+        // Search box (visual display only, click to edit)
+        row.spawn((
+            ButtonBundle {
+                style: Style {
+                    padding: UiRect::axes(Val::Px(12.0), Val::Px(8.0)),
+                    min_width: Val::Px(300.0),
+                    border: UiRect::all(Val::Px(2.0)),
+                    ..default()
+                },
+                background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                border_color: Color::rgb(0.4, 0.6, 0.8).into(),
+                ..default()
+            },
+            SearchInput,
+        ))
+        .with_children(|button| {
+            let display_text = if search_state.search_query.is_empty() {
+                "Click to search words...".to_string()
+            } else {
+                format!("🔍 {}", search_state.search_query)
+            };
+
+            button.spawn(TextBundle::from_section(
+                display_text,
+                TextStyle {
+                    font_size: 14.0,
+                    color: if search_state.search_query.is_empty() {
+                        Color::rgb(0.5, 0.5, 0.5)
+                    } else {
+                        Color::rgb(0.9, 0.9, 1.0)
+                    },
+                    ..default()
+                },
+            ));
+        });
+
+        // Clear search button (only show if search is active)
+        if !search_state.search_query.is_empty() {
+            row.spawn((
+                ButtonBundle {
+                    style: Style {
+                        padding: UiRect::axes(Val::Px(10.0), Val::Px(8.0)),
+                        border: UiRect::all(Val::Px(1.0)),
+                        ..default()
+                    },
+                    background_color: Color::rgb(0.5, 0.3, 0.3).into(),
+                    border_color: Color::rgb(0.7, 0.4, 0.4).into(),
+                    ..default()
+                },
+                ClearSearchButton,
+            ))
+            .with_children(|button| {
+                button.spawn(TextBundle::from_section(
+                    "❌ Clear",
+                    TextStyle {
+                        font_size: 13.0,
+                        color: Color::WHITE,
+                        ..default()
+                    },
+                ));
+            });
+        }
+    });
+
+    // Word type filter buttons
+    parent.spawn(TextBundle::from_section(
+        "Filter by type:",
+        TextStyle {
+            font_size: 13.0,
+            color: Color::rgb(0.7, 0.7, 0.7),
+            ..default()
+        },
+    ));
+
+    parent.spawn(NodeBundle {
+        style: Style {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Row,
+            flex_wrap: FlexWrap::Wrap,
+            column_gap: Val::Px(8.0),
+            row_gap: Val::Px(6.0),
+            margin: UiRect::vertical(Val::Px(8.0)),
+            ..default()
+        },
+        ..default()
+    })
+    .with_children(|filter_row| {
+        // "All" filter button
+        let is_active = search_state.active_filter.is_none();
+        filter_row.spawn((
+            ButtonBundle {
+                style: Style {
+                    padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
+                    border: UiRect::all(Val::Px(2.0)),
+                    ..default()
+                },
+                background_color: if is_active {
+                    Color::rgb(0.3, 0.5, 0.7).into()
+                } else {
+                    Color::rgb(0.2, 0.2, 0.25).into()
+                },
+                border_color: if is_active {
+                    Color::rgb(0.5, 0.7, 0.9).into()
+                } else {
+                    Color::rgb(0.3, 0.3, 0.35).into()
+                },
+                ..default()
+            },
+            WordTypeFilter { filter: None },
+        ))
+        .with_children(|button| {
+            button.spawn(TextBundle::from_section(
+                "All Types",
+                TextStyle {
+                    font_size: 12.0,
+                    color: Color::WHITE,
+                    ..default()
+                },
+            ));
+        });
+
+        // Individual type filter buttons
+        let word_types = [
+            (VocabType::Verb, "🔨 Verbs", Color::rgb(0.9, 0.6, 0.6)),
+            (VocabType::Noun, "📦 Nouns", Color::rgb(0.6, 0.9, 0.6)),
+            (VocabType::Adjective, "✨ Adjectives", Color::rgb(0.6, 0.6, 0.9)),
+            (VocabType::Adverb, "⚡ Adverbs", Color::rgb(0.9, 0.9, 0.6)),
+            (VocabType::Preposition, "🔗 Prepositions", Color::rgb(0.9, 0.6, 0.9)),
+            (VocabType::Pronoun, "👤 Pronouns", Color::rgb(0.6, 0.9, 0.9)),
+            (VocabType::Conjugation, "🔀 Conjugations", Color::rgb(0.8, 0.8, 0.8)),
+        ];
+
+        for (word_type, label, _color) in word_types {
+            let is_active = search_state.active_filter == Some(word_type);
+            filter_row.spawn((
+                ButtonBundle {
+                    style: Style {
+                        padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
+                        border: UiRect::all(Val::Px(2.0)),
+                        ..default()
+                    },
+                    background_color: if is_active {
+                        Color::rgb(0.3, 0.5, 0.7).into()
+                    } else {
+                        Color::rgb(0.2, 0.2, 0.25).into()
+                    },
+                    border_color: if is_active {
+                        Color::rgb(0.5, 0.7, 0.9).into()
+                    } else {
+                        Color::rgb(0.3, 0.3, 0.35).into()
+                    },
+                    ..default()
+                },
+                WordTypeFilter { filter: Some(word_type) },
+            ))
+            .with_children(|button| {
+                button.spawn(TextBundle::from_section(
+                    label,
+                    TextStyle {
+                        font_size: 12.0,
+                        color: Color::WHITE,
+                        ..default()
+                    },
+                ));
+            });
+        }
+    });
+
+    parent.spawn(TextBundle::from_section(
+        " ",
+        TextStyle {
+            font_size: 8.0,
             ..default()
         },
     ));
@@ -211,13 +423,31 @@ pub fn render_vocabulary_panel(parent: &mut ChildBuilder, state: &BuilderState) 
 
     // Display available words by type with add buttons
     for (word_type, title, color) in word_types {
+        // Skip this type if filter is active and doesn't match
+        if let Some(active_filter) = search_state.active_filter {
+            if active_filter != word_type {
+                continue;
+            }
+        }
+
         let library_words = vocabulary_library::get_words_by_type(word_type);
 
-        // Filter out words already in game
+        // Filter out words already in game and apply search filter
+        let search_lower = search_state.search_query.to_lowercase();
         let available_words: Vec<_> = library_words.iter()
             .filter(|lib_word| {
-                !state.current_game.vocabulary.iter()
-                    .any(|v| v.word == lib_word.word)
+                // Not already in game
+                let not_in_game = !state.current_game.vocabulary.iter()
+                    .any(|v| v.word == lib_word.word);
+
+                // Matches search (if search is active)
+                let matches_search = if search_lower.is_empty() {
+                    true
+                } else {
+                    lib_word.word.to_lowercase().contains(&search_lower)
+                };
+
+                not_in_game && matches_search
             })
             .collect();
 
@@ -231,8 +461,12 @@ pub fn render_vocabulary_panel(parent: &mut ChildBuilder, state: &BuilderState) 
                 },
             ));
 
-            // Show first 15 words of each type with add buttons
-            let display_count = available_words.len().min(15);
+            // Show more words when search/filter is active, otherwise show first 15
+            let display_count = if !search_state.search_query.is_empty() || search_state.active_filter.is_some() {
+                available_words.len().min(50)
+            } else {
+                available_words.len().min(15)
+            };
 
             parent.spawn(NodeBundle {
                 style: Style {
@@ -278,7 +512,7 @@ pub fn render_vocabulary_panel(parent: &mut ChildBuilder, state: &BuilderState) 
 
             if available_words.len() > display_count {
                 parent.spawn(TextBundle::from_section(
-                    format!("... and {} more (scroll or search coming soon)", available_words.len() - display_count),
+                    format!("... and {} more (use search/filter to narrow results)", available_words.len() - display_count),
                     TextStyle {
                         font_size: 12.0,
                         color: Color::rgb(0.5, 0.5, 0.5),
@@ -331,6 +565,24 @@ pub fn render_vocabulary_panel(parent: &mut ChildBuilder, state: &BuilderState) 
         TextStyle {
             font_size: 13.0,
             color: Color::rgb(0.6, 0.6, 0.6),
+            ..default()
+        },
+    ));
+
+    parent.spawn(TextBundle::from_section(
+        "  • Use the search box to find specific words quickly",
+        TextStyle {
+            font_size: 13.0,
+            color: Color::rgb(0.6, 0.8, 0.6),
+            ..default()
+        },
+    ));
+
+    parent.spawn(TextBundle::from_section(
+        "  • Filter by word type to see only verbs, nouns, etc.",
+        TextStyle {
+            font_size: 13.0,
+            color: Color::rgb(0.6, 0.8, 0.6),
             ..default()
         },
     ));
@@ -427,7 +679,77 @@ pub fn handle_remove_word_button(
         if *interaction == Interaction::Pressed {
             // Remove word from vocabulary
             state.current_game.vocabulary.retain(|v| v.id != button.word_id);
+            state.mark_dirty();
             info!("Removed word with ID {} from vocabulary", button.word_id);
+        }
+    }
+}
+
+/// System to handle word type filter button clicks
+pub fn handle_word_type_filter_button(
+    mut search_state: ResMut<VocabularySearchState>,
+    mut interaction_query: Query<
+        (&Interaction, &WordTypeFilter),
+        (Changed<Interaction>, With<Button>),
+    >,
+) {
+    for (interaction, filter) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            search_state.active_filter = filter.filter;
+            info!("Applied word type filter: {:?}", filter.filter);
+        }
+    }
+}
+
+/// System to handle clear search button click
+pub fn handle_clear_search_button(
+    mut search_state: ResMut<VocabularySearchState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<ClearSearchButton>),
+    >,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            search_state.search_query.clear();
+            info!("Cleared vocabulary search");
+        }
+    }
+}
+
+/// System to handle clicking the search input box (opens text input modal)
+pub fn handle_vocabulary_search_input(
+    mut modal_state: ResMut<super::components::TextInputModalState>,
+    search_state: Res<VocabularySearchState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<SearchInput>),
+    >,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            // Open text input modal for search
+            modal_state.open_single_line(
+                "Search Vocabulary",
+                &search_state.search_query,
+                "Type to search words...",
+                "vocab_search"
+            );
+        }
+    }
+}
+
+/// System to process search text input from modal
+pub fn process_vocabulary_search_modal(
+    mut search_state: ResMut<VocabularySearchState>,
+    modal_state: Res<super::components::TextInputModalState>,
+) {
+    // Check if modal was just closed with vocab_search callback
+    if !modal_state.is_open && modal_state.callback_id.as_deref() == Some("vocab_search") {
+        // Modal was open but now closed, update search if value changed
+        if !modal_state.current_value.is_empty() || !search_state.search_query.is_empty() {
+            search_state.search_query = modal_state.current_value.clone();
+            info!("Updated vocabulary search: {}", search_state.search_query);
         }
     }
 }

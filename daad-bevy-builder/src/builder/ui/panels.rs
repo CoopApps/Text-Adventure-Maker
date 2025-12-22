@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use crate::builder::state::{BuilderState, Panel};
 use crate::builder::debug::DebugState;
-use super::vocabulary_ui::render_vocabulary_panel;
+use super::vocabulary_ui::{render_vocabulary_panel, VocabularySearchState};
 use super::game_info_ui::render_game_info_panel;
 use super::analytics_ui::render_analytics_panel;
 use super::sound_ui::render_sound_panel;
@@ -18,6 +18,7 @@ pub fn render_active_panel(
     playtest: Res<PlaytestState>,
     dialogue: Res<DialogueEditorState>,
     debug: Res<DebugState>,
+    vocab_search: Res<VocabularySearchState>,
     query: Query<Entity, With<PanelContent>>,
 ) {
     // Clean up old panel content
@@ -53,7 +54,7 @@ pub fn render_active_panel(
                 Panel::Objects => render_objects_panel(parent, &state),
                 Panel::Rules => render_rules_panel(parent, &state),
                 Panel::Flags => render_flags_panel(parent, &state),
-                Panel::Vocabulary => render_vocabulary_panel(parent, &state),
+                Panel::Vocabulary => render_vocabulary_panel(parent, &state, &vocab_search),
                 Panel::Graphics => render_graphics_panel(parent, &state),
                 Panel::Sounds => render_sound_panel(parent, &state),
                 Panel::Templates => render_templates_panel(parent, &state),

@@ -23,6 +23,7 @@ fn main() {
         .init_resource::<builder::ui::condition_action_modals::ActionEditorState>()
         .init_resource::<builder::ui::components::TextInputModalState>()
         .init_resource::<builder::ui::components::ConfirmationModalState>()
+        .init_resource::<builder::ui::vocabulary_ui::VocabularySearchState>()
         .init_resource::<builder::debug::DebugState>()
         .add_systems(Startup, setup)
         .add_systems(Update, (
@@ -35,6 +36,7 @@ fn main() {
             auto_save_system,
             button_hover_system,
             render_help_overlay,
+            render_status_bar,
         ))
         .add_systems(Update, (
             // Location editor systems
@@ -146,6 +148,10 @@ fn main() {
             builder::ui::vocabulary_ui::handle_add_word_button,
             builder::ui::vocabulary_ui::handle_remove_word_button,
             builder::ui::vocabulary_ui::handle_import_standard_vocabulary_button,
+            builder::ui::vocabulary_ui::handle_word_type_filter_button,
+            builder::ui::vocabulary_ui::handle_clear_search_button,
+            builder::ui::vocabulary_ui::handle_vocabulary_search_input,
+            builder::ui::vocabulary_ui::process_vocabulary_search_modal,
         ))
         .add_systems(Update, (
             // Game Info systems
@@ -265,6 +271,170 @@ fn button_hover_system(
 
 #[derive(Component)]
 struct HelpOverlay;
+
+#[derive(Component)]
+struct StatusBar;
+
+/// Render status bar at bottom of screen
+fn render_status_bar(
+    mut commands: Commands,
+    state: Res<builder::state::BuilderState>,
+    time: Res<Time>,
+    query: Query<Entity, With<StatusBar>>,
+) {
+    // Clean up old status bar
+    for entity in query.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+
+    let current_time = time.elapsed_seconds_f64();
+    let time_since_save = current_time - state.last_save_time;
+
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    bottom: Val::Px(0.0),
+                    left: Val::Px(0.0),
+                    width: Val::Percent(100.0),
+                    height: Val::Px(30.0),
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    padding: UiRect::horizontal(Val::Px(15.0)),
+                    column_gap: Val::Px(20.0),
+                    border: UiRect::top(Val::Px(1.0)),
+                    ..default()
+                },
+                background_color: Color::rgba(0.08, 0.08, 0.12, 0.95).into(),
+                border_color: Color::rgb(0.3, 0.3, 0.35).into(),
+                ..default()
+            },
+            StatusBar,
+        ))
+        .with_children(|parent| {
+            // Unsaved changes indicator
+            if state.unsaved_changes {
+                parent.spawn(TextBundle::from_section(
+                    "● Unsaved Changes",
+                    TextStyle {
+                        font_size: 12.0,
+                        color: Color::rgb(1.0, 0.6, 0.4),
+                        ..default()
+                    },
+                ));
+            } else {
+                parent.spawn(TextBundle::from_section(
+                    "✓ All Changes Saved",
+                    TextStyle {
+                        font_size: 12.0,
+                        color: Color::rgb(0.4, 0.8, 0.4),
+                        ..default()
+                    },
+                ));
+            }
+
+            // Separator
+            parent.spawn(TextBundle::from_section(
+                "|",
+                TextStyle {
+                    font_size: 12.0,
+                    color: Color::rgb(0.4, 0.4, 0.4),
+                    ..default()
+                },
+            ));
+
+            // Auto-save status
+            if state.auto_save_enabled {
+                let save_text = if state.unsaved_changes && time_since_save > 0.1 {
+                    format!("Auto-save: ON (saves in {}s)", 60 - (time_since_save as i32).min(59))
+                } else {
+                    "Auto-save: ON".to_string()
+                };
+
+                parent.spawn(TextBundle::from_section(
+                    save_text,
+                    TextStyle {
+                        font_size: 12.0,
+                        color: Color::rgb(0.4, 0.7, 0.9),
+                        ..default()
+                    },
+                ));
+            } else {
+                parent.spawn(TextBundle::from_section(
+                    "Auto-save: OFF",
+                    TextStyle {
+                        font_size: 12.0,
+                        color: Color::rgb(0.6, 0.6, 0.6),
+                        ..default()
+                    },
+                ));
+            }
+
+            // Current file
+            if let Some(path) = &state.current_file_path {
+                parent.spawn(TextBundle::from_section(
+                    "|",
+                    TextStyle {
+                        font_size: 12.0,
+                        color: Color::rgb(0.4, 0.4, 0.4),
+                        ..default()
+                    },
+                ));
+
+                let filename = std::path::Path::new(path)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(path);
+
+                parent.spawn(TextBundle::from_section(
+                    format!("📁 {}", filename),
+                    TextStyle {
+                        font_size: 12.0,
+                        color: Color::rgb(0.7, 0.7, 0.8),
+                        ..default()
+                    },
+                ));
+            } else {
+                parent.spawn(TextBundle::from_section(
+                    "|",
+                    TextStyle {
+                        font_size: 12.0,
+                        color: Color::rgb(0.4, 0.4, 0.4),
+                        ..default()
+                    },
+                ));
+
+                parent.spawn(TextBundle::from_section(
+                    "📁 Untitled Project",
+                    TextStyle {
+                        font_size: 12.0,
+                        color: Color::rgb(0.5, 0.5, 0.5),
+                        ..default()
+                    },
+                ));
+            }
+
+            // Spacer to push help hint to the right
+            parent.spawn(NodeBundle {
+                style: Style {
+                    flex_grow: 1.0,
+                    ..default()
+                },
+                ..default()
+            });
+
+            // Help hint
+            parent.spawn(TextBundle::from_section(
+                "Press H or F1 for help",
+                TextStyle {
+                    font_size: 11.0,
+                    color: Color::rgb(0.5, 0.5, 0.6),
+                    ..default()
+                },
+            ));
+        });
+}
 
 /// Render keyboard shortcuts help overlay
 fn render_help_overlay(
