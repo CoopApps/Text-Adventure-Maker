@@ -1,1 +1,5 @@
 external/
+
+# Build outputs and exports
+daad-bevy-builder/exports/
+daad-bevy-builder/test_*
