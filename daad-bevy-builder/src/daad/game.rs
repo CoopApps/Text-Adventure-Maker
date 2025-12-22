@@ -153,6 +153,9 @@ impl DaadGame {
             process,
             conditions: vec![],
             actions: vec![],
+            verb: None,         // Default to wildcard
+            noun: None,         // Default to wildcard
+            label: None,        // No label by default
             editor_position: Vec2::new(100.0, 100.0 + (id as f32 * 80.0)),
             enabled: true,
         });

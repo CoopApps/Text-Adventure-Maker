@@ -126,6 +126,11 @@ pub struct Rule {
     pub conditions: Vec<Condition>,
     pub actions: Vec<Action>,
 
+    // DAAD process table matching
+    pub verb: Option<String>,   // Verb to match (None = wildcard "_")
+    pub noun: Option<String>,   // Noun to match (None = wildcard "_")
+    pub label: Option<String>,  // Label for SKIP/GOTO (e.g., "$noCarry")
+
     // Visual editor
     pub editor_position: Vec2,
     pub enabled: bool,          // Can disable rules visually

@@ -5,6 +5,48 @@ use super::{game::*, types::*};
 pub struct DaadCodeGenerator;
 
 impl DaadCodeGenerator {
+    /// Map system flag IDs (0-63) to their #define names
+    /// Returns the name if it's a system flag, otherwise returns the ID as a string
+    fn flag_name(flag_id: u8) -> String {
+        match flag_id {
+            0 => "fDark".to_string(),
+            1 => "fObjectsCarried".to_string(),
+            28 => "fDarkF".to_string(),
+            29 => "fGFlags".to_string(),
+            30 => "fScore".to_string(),
+            31 => "fTurns".to_string(),
+            32 => "fTurnsHi".to_string(),
+            33 => "fVerb".to_string(),
+            34 => "fNoun".to_string(),
+            35 => "fAdject1".to_string(),
+            36 => "fAdverb".to_string(),
+            37 => "fMaxCarr".to_string(),
+            38 => "fPlayer".to_string(),
+            43 => "fPrep".to_string(),
+            44 => "fNoun2".to_string(),
+            45 => "fAdject2".to_string(),
+            46 => "fCPronounNoun".to_string(),
+            47 => "fCPronounAdject".to_string(),
+            48 => "fTimeout".to_string(),
+            49 => "fTimeoutFlags".to_string(),
+            50 => "fDoallObjNo".to_string(),
+            51 => "fRefObject".to_string(),
+            52 => "fStrength".to_string(),
+            53 => "fObjFlags".to_string(),
+            54 => "fRefObjLoc".to_string(),
+            55 => "fRefObjWeight".to_string(),
+            56 => "fRefObjIsContainer".to_string(),
+            57 => "fRefObjisWearable".to_string(),
+            58 => "fRefObjAttr1".to_string(),
+            59 => "fRefObjAttr2".to_string(),
+            60 => "fInkeyKey1".to_string(),
+            61 => "fInkeyKey2".to_string(),
+            62 => "fScreenMode".to_string(),
+            63 => "fCurrentWindow".to_string(),
+            _ => flag_id.to_string(), // User flags (64-255) use numeric ID
+        }
+    }
+
     /// Generate complete DAAD source code from visual game
     /// Follows DRC specification EXACTLY - section order matters!
     pub fn generate(game: &DaadGame) -> String {
@@ -491,15 +533,19 @@ impl DaadCodeGenerator {
     fn generate_rule(rule: &Rule, game: &DaadGame) -> String {
         let mut code = String::new();
 
+        // Add label if present (for SKIP/GOTO)
+        if let Some(label) = &rule.label {
+            code.push_str(&format!("{}\n", label));
+        }
+
         // Comment with rule name
-        code.push_str(&format!("\n; {}\n", rule.name));
+        code.push_str(&format!("; {}\n", rule.name));
 
         // First line: > VERB NOUN CONDITION(s)
-        // TODO: Extract verb/noun from rule - for now use wildcards
-        let verb = "_";
-        let noun = "_";
+        let verb = rule.verb.as_deref().unwrap_or("_");
+        let noun = rule.noun.as_deref().unwrap_or("_");
 
-        code.push_str(&format!("> {:<7} {:<7}", verb, noun));
+        code.push_str(&format!("> {:<7} {:<7}", verb.to_uppercase(), noun.to_uppercase()));
 
         // Add first condition on same line
         if !rule.conditions.is_empty() {
@@ -550,16 +596,16 @@ impl DaadCodeGenerator {
                 format!("ISAT {} {}", object_id, location_id)
             }
             ConditionType::FlagEquals { flag_id, value } => {
-                format!("EQ {} {}", flag_id, value)
+                format!("EQ {} {}", Self::flag_name(*flag_id), value)
             }
             ConditionType::FlagGreaterThan { flag_id, value } => {
-                format!("GT {} {}", flag_id, value)
+                format!("GT {} {}", Self::flag_name(*flag_id), value)
             }
             ConditionType::FlagLessThan { flag_id, value } => {
-                format!("LT {} {}", flag_id, value)
+                format!("LT {} {}", Self::flag_name(*flag_id), value)
             }
             ConditionType::FlagZero { flag_id } => {
-                format!("ZERO {}", flag_id)
+                format!("ZERO {}", Self::flag_name(*flag_id))
             }
             ConditionType::VerbIs { verb } => {
                 format!("VERB {}", verb)
@@ -568,13 +614,13 @@ impl DaadCodeGenerator {
                 format!("NOUN {}", noun)
             }
             ConditionType::IsFirstTurn => {
-                format!("EQ {} 0", 31) // fTurns == 0
+                format!("EQ fTurns 0")
             }
             ConditionType::TurnCountGreaterThan { turns } => {
-                format!("GT {} {}", 31, turns) // fTurns > turns
+                format!("GT fTurns {}", turns)
             }
             ConditionType::ScoreGreaterThan { score } => {
-                format!("GT {} {}", 30, score) // fScore > score
+                format!("GT fScore {}", score)
             }
         }
     }
@@ -611,13 +657,13 @@ impl DaadCodeGenerator {
                 format!("PLACE {} {}", object_id, loc_num)
             }
             ActionType::SetFlag { flag_id, value } => {
-                format!("LET {} {}", flag_id, value)
+                format!("LET {} {}", Self::flag_name(*flag_id), value)
             }
             ActionType::IncrementFlag { flag_id } => {
-                format!("PLUS {} 1", flag_id)
+                format!("PLUS {} 1", Self::flag_name(*flag_id))
             }
             ActionType::DecrementFlag { flag_id } => {
-                format!("MINUS {} 1", flag_id)
+                format!("MINUS {} 1", Self::flag_name(*flag_id))
             }
             ActionType::GoToLocation { location_id } => {
                 format!("GOTO {}", location_id)
@@ -632,7 +678,7 @@ impl DaadCodeGenerator {
                 format!("SKIP {}", count)
             }
             ActionType::AddScore { points } => {
-                format!("PLUS {} {}", 30, points) // fScore += points
+                format!("PLUS fScore {}", points)
             }
         }
     }
