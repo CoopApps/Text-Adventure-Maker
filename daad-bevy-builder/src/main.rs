@@ -21,6 +21,7 @@ fn main() {
         .init_resource::<builder::ui::dialogue_ui::DialogueEditorState>()
         .init_resource::<builder::ui::condition_action_modals::ConditionEditorState>()
         .init_resource::<builder::ui::condition_action_modals::ActionEditorState>()
+        .init_resource::<builder::ui::components::TextInputModalState>()
         .init_resource::<builder::debug::DebugState>()
         .add_systems(Startup, setup)
         .add_systems(Update, (
@@ -45,8 +46,9 @@ fn main() {
         .add_systems(Update, (
             // Object editor systems
             builder::editors::object_editor::render_object_sidebar,
-            builder::editors::object_editor::handle_object_card_clicks,
             builder::editors::object_editor::handle_add_object_button,
+            builder::editors::object_editor::handle_edit_object_button,
+            builder::editors::object_editor::handle_delete_object_button,
             // Rule editor systems
             builder::editors::rule_editor::render_rule_sidebar,
             builder::editors::rule_editor::render_rule_detail_editor,
@@ -62,6 +64,9 @@ fn main() {
         .add_systems(Update, (
             // Condition/Action modal systems
             builder::ui::components::handle_close_modal_button,
+            builder::ui::components::render_text_input_modal,
+            builder::ui::components::handle_text_input_modal_keyboard,
+            builder::ui::components::handle_text_input_modal_save,
             builder::ui::condition_action_modals::render_condition_editor_modal,
             builder::ui::condition_action_modals::render_action_editor_modal,
             builder::ui::condition_action_modals::handle_condition_type_button,

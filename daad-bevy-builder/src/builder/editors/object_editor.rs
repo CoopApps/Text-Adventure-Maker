@@ -85,12 +85,12 @@ pub fn render_object_sidebar(
 
                 parent
                     .spawn((
-                        ButtonBundle {
+                        NodeBundle {
                             style: Style {
                                 padding: UiRect::all(Val::Px(8.0)),
                                 border: UiRect::all(Val::Px(2.0)),
                                 flex_direction: FlexDirection::Column,
-                                align_items: AlignItems::FlexStart,
+                                row_gap: Val::Px(6.0),
                                 ..default()
                             },
                             background_color: if is_selected {
@@ -109,9 +109,9 @@ pub fn render_object_sidebar(
                             object_id: object.id,
                         },
                     ))
-                    .with_children(|parent| {
+                    .with_children(|card| {
                         // Object icon and name
-                        parent.spawn(TextBundle::from_section(
+                        card.spawn(TextBundle::from_section(
                             format!("{} {}", object.icon, object.name),
                             TextStyle {
                                 font_size: 14.0,
@@ -121,7 +121,7 @@ pub fn render_object_sidebar(
                         ));
 
                         // Adjective and noun
-                        parent.spawn(TextBundle::from_section(
+                        card.spawn(TextBundle::from_section(
                             format!("{} {}", object.adjective, object.noun),
                             TextStyle {
                                 font_size: 11.0,
@@ -151,7 +151,7 @@ pub fn render_object_sidebar(
                             }
                         };
 
-                        parent.spawn(TextBundle::from_section(
+                        card.spawn(TextBundle::from_section(
                             location_text,
                             TextStyle {
                                 font_size: 10.0,
@@ -159,6 +159,69 @@ pub fn render_object_sidebar(
                                 ..default()
                             },
                         ));
+
+                        // Edit/Delete button row
+                        card.spawn(NodeBundle {
+                            style: Style {
+                                display: Display::Flex,
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(6.0),
+                                margin: UiRect::top(Val::Px(4.0)),
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|row| {
+                            // Edit button
+                            row.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::axes(Val::Px(10.0), Val::Px(5.0)),
+                                        ..default()
+                                    },
+                                    background_color: Color::rgb(0.4, 0.5, 0.6).into(),
+                                    ..default()
+                                },
+                                EditObjectButton {
+                                    object_id: object.id,
+                                },
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    "✏️ Edit",
+                                    TextStyle {
+                                        font_size: 11.0,
+                                        color: Color::WHITE,
+                                        ..default()
+                                    },
+                                ));
+                            });
+
+                            // Delete button
+                            row.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::axes(Val::Px(10.0), Val::Px(5.0)),
+                                        ..default()
+                                    },
+                                    background_color: Color::rgb(0.6, 0.3, 0.3).into(),
+                                    ..default()
+                                },
+                                DeleteObjectButton {
+                                    object_id: object.id,
+                                },
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    "🗑️ Delete",
+                                    TextStyle {
+                                        font_size: 11.0,
+                                        color: Color::WHITE,
+                                        ..default()
+                                    },
+                                ));
+                            });
+                        });
                     });
             }
 
@@ -174,21 +237,8 @@ pub fn render_object_sidebar(
         });
 }
 
-/// Handle object card clicks (select for editing)
-pub fn handle_object_card_clicks(
-    mut state: ResMut<BuilderState>,
-    mut interaction_query: Query<
-        (&Interaction, &ObjectCard),
-        Changed<Interaction>,
-    >,
-) {
-    for (interaction, card) in interaction_query.iter_mut() {
-        if *interaction == Interaction::Pressed {
-            state.editing = Some(EditMode::Object(card.object_id));
-            info!("Selected object {} for editing", card.object_id);
-        }
-    }
-}
+// Note: Object card selection removed - cards are now display-only containers
+// with Edit/Delete button actions instead
 
 /// Handle add object button
 pub fn handle_add_object_button(
@@ -225,6 +275,49 @@ pub fn handle_object_to_location_drag(
     // For now, objects can be moved by editing their properties directly
 }
 
+/// Handle edit object button (opens text input modal)
+pub fn handle_edit_object_button(
+    state: Res<BuilderState>,
+    mut text_modal: ResMut<crate::builder::ui::components::TextInputModalState>,
+    mut interaction_query: Query<
+        (&Interaction, &EditObjectButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(object) = state.current_game.objects.iter().find(|o| o.id == button.object_id) {
+                text_modal.open_single_line(
+                    "Edit Object Name",
+                    &object.name,
+                    "Enter object name...",
+                    &format!("object_{}", button.object_id),
+                );
+                info!("Opening edit modal for object {}", button.object_id);
+            }
+        }
+    }
+}
+
+/// Handle delete object button
+pub fn handle_delete_object_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &DeleteObjectButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(idx) = state.current_game.objects.iter().position(|o| o.id == button.object_id) {
+                state.current_game.objects.remove(idx);
+                state.unsaved_changes = true;
+                info!("Deleted object {}", button.object_id);
+            }
+        }
+    }
+}
+
 // Components
 #[derive(Component)]
 pub(crate) struct ObjectSidebar;
@@ -236,3 +329,13 @@ pub(crate) struct ObjectCard {
 
 #[derive(Component)]
 pub(crate) struct AddObjectButton;
+
+#[derive(Component)]
+pub(crate) struct EditObjectButton {
+    object_id: u8,
+}
+
+#[derive(Component)]
+pub(crate) struct DeleteObjectButton {
+    object_id: u8,
+}
