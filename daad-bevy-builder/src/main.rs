@@ -29,6 +29,7 @@ fn main() {
         .init_resource::<builder::ui::components::NotificationManager>()
         .init_resource::<builder::ui::components::UndoRedoManager>()
         .init_resource::<builder::ui::components::ClipboardManager>()
+        .init_resource::<builder::ui::components::ValidationResults>()
         .init_resource::<builder::ui::vocabulary_ui::VocabularySearchState>()
         .init_resource::<builder::debug::DebugState>()
         .add_systems(Startup, setup)
@@ -545,6 +546,7 @@ fn render_help_overlay(
                 ("H / F1", "Toggle this help overlay"),
                 ("F2", "Toggle code viewer"),
                 ("F5", "Toggle preview mode"),
+                ("F6", "Run game validation"),
                 ("", ""),
                 ("Ctrl+S", "Save project to JSON"),
                 ("Ctrl+E", "Export to DAAD source code"),
@@ -653,6 +655,7 @@ fn handle_keyboard_shortcuts(
     mut notification_manager: ResMut<builder::ui::components::NotificationManager>,
     mut undo_manager: ResMut<builder::ui::components::UndoRedoManager>,
     mut clipboard_manager: ResMut<builder::ui::components::ClipboardManager>,
+    mut validation_results: ResMut<builder::ui::components::ValidationResults>,
     time: Res<Time>,
 ) {
     let current_time = time.elapsed_seconds_f64();
@@ -682,6 +685,37 @@ fn handle_keyboard_shortcuts(
             if state.show_preview { "Preview mode enabled" } else { "Preview mode disabled" },
             current_time
         );
+    }
+
+    // F6 = Run game validation
+    if keys.just_pressed(KeyCode::F6) {
+        use builder::ui::components::GameValidator;
+
+        // Run validation
+        let results = GameValidator::validate(&state.current_game);
+
+        // Show notification with summary
+        if results.has_errors() {
+            notification_manager.add_error(
+                format!("❌ Validation: {}", results.summary()),
+                current_time
+            );
+        } else if results.warning_count() > 0 {
+            notification_manager.add_warning(
+                format!("⚠️ Validation: {}", results.summary()),
+                current_time
+            );
+        } else {
+            notification_manager.add_success(
+                "✅ Validation passed: No issues found",
+                current_time
+            );
+        }
+
+        // Store results in the resource
+        *validation_results = results;
+        validation_results.last_validated = Some(current_time);
+        validation_results.show_results = true;
     }
 
     // Ctrl+S = Save project to JSON

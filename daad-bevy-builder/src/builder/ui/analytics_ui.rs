@@ -1,10 +1,11 @@
 use bevy::prelude::*;
 use crate::builder::state::BuilderState;
+use crate::builder::ui::components::{ValidationResults, ValidationSeverity};
 use crate::daad::types::*;
 use crate::daad::game::{DaadGame, VocabType};
 
 /// Renders the Analytics panel showing game statistics and content analysis
-pub fn render_analytics_panel(parent: &mut ChildBuilder, state: &BuilderState) {
+pub fn render_analytics_panel(parent: &mut ChildBuilder, state: &BuilderState, validation: &ValidationResults) {
     let game = &state.current_game;
 
     // Calculate all statistics
@@ -33,6 +34,11 @@ pub fn render_analytics_panel(parent: &mut ChildBuilder, state: &BuilderState) {
                 ..default()
             },
         ));
+
+        // Validation Results Section (if validation has been run)
+        if !validation.issues.is_empty() || validation.last_validated.is_some() {
+            render_validation_section(panel, validation);
+        }
 
         // Overview Section
         render_overview_section(panel, &stats, game);
@@ -699,6 +705,247 @@ fn render_stat_card(parent: &mut ChildBuilder, label: &str, value: &str, accent_
                 ..default()
             },
         ));
+    });
+}
+
+fn render_validation_section(parent: &mut ChildBuilder, validation: &ValidationResults) {
+    parent.spawn(NodeBundle {
+        style: Style {
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(12.0),
+            ..default()
+        },
+        ..default()
+    })
+    .with_children(|section| {
+        // Section header with summary
+        section.spawn(NodeBundle {
+            style: Style {
+                flex_direction: FlexDirection::Row,
+                justify_content: JustifyContent::SpaceBetween,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            ..default()
+        })
+        .with_children(|header| {
+            header.spawn(TextBundle::from_section(
+                "🔍 Validation Results",
+                TextStyle {
+                    font_size: 22.0,
+                    color: Color::rgb(0.8, 0.9, 1.0),
+                    ..default()
+                },
+            ));
+
+            // Summary badge
+            let summary_color = if validation.has_errors() {
+                Color::rgb(1.0, 0.4, 0.4)
+            } else if validation.warning_count() > 0 {
+                Color::rgb(1.0, 0.8, 0.3)
+            } else {
+                Color::rgb(0.5, 1.0, 0.5)
+            };
+
+            header.spawn(NodeBundle {
+                style: Style {
+                    padding: UiRect::all(Val::Px(8.0)),
+                    ..default()
+                },
+                background_color: Color::rgba(0.2, 0.2, 0.25, 0.9).into(),
+                ..default()
+            })
+            .with_children(|badge| {
+                badge.spawn(TextBundle::from_section(
+                    &validation.summary(),
+                    TextStyle {
+                        font_size: 14.0,
+                        color: summary_color,
+                        ..default()
+                    },
+                ));
+            });
+        });
+
+        // If no issues found
+        if validation.issues.is_empty() {
+            section.spawn(NodeBundle {
+                style: Style {
+                    padding: UiRect::all(Val::Px(16.0)),
+                    ..default()
+                },
+                background_color: Color::rgba(0.2, 0.4, 0.2, 0.5).into(),
+                ..default()
+            })
+            .with_children(|card| {
+                card.spawn(TextBundle::from_section(
+                    "✅ Validation passed: No issues found",
+                    TextStyle {
+                        font_size: 16.0,
+                        color: Color::rgb(0.7, 1.0, 0.7),
+                        ..default()
+                    },
+                ));
+            });
+        } else {
+            // Group issues by severity
+            let errors: Vec<_> = validation.issues.iter()
+                .filter(|i| i.severity == ValidationSeverity::Error)
+                .collect();
+            let warnings: Vec<_> = validation.issues.iter()
+                .filter(|i| i.severity == ValidationSeverity::Warning)
+                .collect();
+            let infos: Vec<_> = validation.issues.iter()
+                .filter(|i| i.severity == ValidationSeverity::Info)
+                .collect();
+
+            // Display errors
+            if !errors.is_empty() {
+                section.spawn(TextBundle::from_section(
+                    format!("❌ Errors ({})", errors.len()),
+                    TextStyle {
+                        font_size: 18.0,
+                        color: Color::rgb(1.0, 0.5, 0.5),
+                        ..default()
+                    },
+                ));
+
+                for issue in errors.iter().take(10) {
+                    section.spawn(NodeBundle {
+                        style: Style {
+                            padding: UiRect::all(Val::Px(12.0)),
+                            margin: UiRect::left(Val::Px(16.0)),
+                            ..default()
+                        },
+                        background_color: Color::rgba(0.3, 0.15, 0.15, 0.6).into(),
+                        ..default()
+                    })
+                    .with_children(|card| {
+                        card.spawn(TextBundle::from_section(
+                            format!("{}: {}", issue.entity_description(), issue.message),
+                            TextStyle {
+                                font_size: 14.0,
+                                color: Color::rgb(1.0, 0.7, 0.7),
+                                ..default()
+                            },
+                        ));
+                    });
+                }
+
+                if errors.len() > 10 {
+                    section.spawn(TextBundle::from_section(
+                        format!("... and {} more errors", errors.len() - 10),
+                        TextStyle {
+                            font_size: 13.0,
+                            color: Color::rgb(0.7, 0.5, 0.5),
+                            ..default()
+                        },
+                    ));
+                }
+            }
+
+            // Display warnings
+            if !warnings.is_empty() {
+                section.spawn(TextBundle::from_section(
+                    format!("⚠️ Warnings ({})", warnings.len()),
+                    TextStyle {
+                        font_size: 18.0,
+                        color: Color::rgb(1.0, 0.8, 0.4),
+                        ..default()
+                    },
+                ));
+
+                for issue in warnings.iter().take(10) {
+                    section.spawn(NodeBundle {
+                        style: Style {
+                            padding: UiRect::all(Val::Px(12.0)),
+                            margin: UiRect::left(Val::Px(16.0)),
+                            ..default()
+                        },
+                        background_color: Color::rgba(0.3, 0.25, 0.15, 0.6).into(),
+                        ..default()
+                    })
+                    .with_children(|card| {
+                        card.spawn(TextBundle::from_section(
+                            format!("{}: {}", issue.entity_description(), issue.message),
+                            TextStyle {
+                                font_size: 14.0,
+                                color: Color::rgb(1.0, 0.9, 0.6),
+                                ..default()
+                            },
+                        ));
+                    });
+                }
+
+                if warnings.len() > 10 {
+                    section.spawn(TextBundle::from_section(
+                        format!("... and {} more warnings", warnings.len() - 10),
+                        TextStyle {
+                            font_size: 13.0,
+                            color: Color::rgb(0.7, 0.7, 0.5),
+                            ..default()
+                        },
+                    ));
+                }
+            }
+
+            // Display infos
+            if !infos.is_empty() {
+                section.spawn(TextBundle::from_section(
+                    format!("ℹ️ Info ({})", infos.len()),
+                    TextStyle {
+                        font_size: 18.0,
+                        color: Color::rgb(0.5, 0.7, 1.0),
+                        ..default()
+                    },
+                ));
+
+                for issue in infos.iter().take(5) {
+                    section.spawn(NodeBundle {
+                        style: Style {
+                            padding: UiRect::all(Val::Px(12.0)),
+                            margin: UiRect::left(Val::Px(16.0)),
+                            ..default()
+                        },
+                        background_color: Color::rgba(0.15, 0.2, 0.3, 0.6).into(),
+                        ..default()
+                    })
+                    .with_children(|card| {
+                        card.spawn(TextBundle::from_section(
+                            format!("{}: {}", issue.entity_description(), issue.message),
+                            TextStyle {
+                                font_size: 14.0,
+                                color: Color::rgb(0.7, 0.85, 1.0),
+                                ..default()
+                            },
+                        ));
+                    });
+                }
+
+                if infos.len() > 5 {
+                    section.spawn(TextBundle::from_section(
+                        format!("... and {} more info messages", infos.len() - 5),
+                        TextStyle {
+                            font_size: 13.0,
+                            color: Color::rgb(0.5, 0.6, 0.7),
+                            ..default()
+                        },
+                    ));
+                }
+            }
+        }
+
+        // Hint about pressing F6 to run validation
+        if validation.issues.is_empty() && validation.last_validated.is_none() {
+            section.spawn(TextBundle::from_section(
+                "Press F6 to run game validation",
+                TextStyle {
+                    font_size: 14.0,
+                    color: Color::rgb(0.5, 0.6, 0.7),
+                    ..default()
+                },
+            ));
+        }
     });
 }
 

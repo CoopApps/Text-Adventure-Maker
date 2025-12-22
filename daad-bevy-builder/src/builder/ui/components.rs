@@ -3048,3 +3048,694 @@ impl UndoRedoManager {
         self.redo_stack.clear();
     }
 }
+
+// ============================================================================
+// GAME VALIDATION SYSTEM
+// ============================================================================
+
+/// Severity level for validation issues
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ValidationSeverity {
+    Info,
+    Warning,
+    Error,
+}
+
+impl ValidationSeverity {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ValidationSeverity::Info => "INFO",
+            ValidationSeverity::Warning => "WARNING",
+            ValidationSeverity::Error => "ERROR",
+        }
+    }
+
+    pub fn icon(&self) -> &'static str {
+        match self {
+            ValidationSeverity::Info => "ℹ️",
+            ValidationSeverity::Warning => "⚠️",
+            ValidationSeverity::Error => "❌",
+        }
+    }
+
+    pub fn color(&self) -> Color {
+        match self {
+            ValidationSeverity::Info => Color::rgb(0.5, 0.7, 1.0),
+            ValidationSeverity::Warning => Color::rgb(1.0, 0.8, 0.3),
+            ValidationSeverity::Error => Color::rgb(1.0, 0.3, 0.3),
+        }
+    }
+}
+
+/// Type of entity the validation issue relates to
+#[derive(Debug, Clone)]
+pub enum ValidationEntityType {
+    Location(u8),
+    Object(u8),
+    Rule(usize),
+    Flag(u8),
+    Message(usize),
+    Vocabulary(String),
+    Connection { location_id: u8, index: usize },
+    General,
+}
+
+/// A single validation issue
+#[derive(Debug, Clone)]
+pub struct ValidationIssue {
+    pub severity: ValidationSeverity,
+    pub message: String,
+    pub entity: ValidationEntityType,
+}
+
+impl ValidationIssue {
+    pub fn new(severity: ValidationSeverity, message: String, entity: ValidationEntityType) -> Self {
+        Self {
+            severity,
+            message,
+            entity,
+        }
+    }
+
+    /// Get a short description of the entity this issue relates to
+    pub fn entity_description(&self) -> String {
+        match &self.entity {
+            ValidationEntityType::Location(id) => format!("Location {}", id),
+            ValidationEntityType::Object(id) => format!("Object {}", id),
+            ValidationEntityType::Rule(id) => format!("Rule {}", id),
+            ValidationEntityType::Flag(id) => format!("Flag {}", id),
+            ValidationEntityType::Message(id) => format!("Message {}", id),
+            ValidationEntityType::Vocabulary(word) => format!("Vocabulary: {}", word),
+            ValidationEntityType::Connection { location_id, index } => {
+                format!("Location {} connection {}", location_id, index)
+            }
+            ValidationEntityType::General => "General".to_string(),
+        }
+    }
+}
+
+/// Game validation results resource
+#[derive(Resource, Default)]
+pub struct ValidationResults {
+    pub issues: Vec<ValidationIssue>,
+    pub last_validated: Option<f64>,
+    pub show_results: bool,
+}
+
+impl ValidationResults {
+    pub fn new() -> Self {
+        Self {
+            issues: Vec::new(),
+            last_validated: None,
+            show_results: false,
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.issues.clear();
+        self.last_validated = None;
+    }
+
+    pub fn add_issue(&mut self, issue: ValidationIssue) {
+        self.issues.push(issue);
+    }
+
+    pub fn error_count(&self) -> usize {
+        self.issues
+            .iter()
+            .filter(|i| i.severity == ValidationSeverity::Error)
+            .count()
+    }
+
+    pub fn warning_count(&self) -> usize {
+        self.issues
+            .iter()
+            .filter(|i| i.severity == ValidationSeverity::Warning)
+            .count()
+    }
+
+    pub fn info_count(&self) -> usize {
+        self.issues
+            .iter()
+            .filter(|i| i.severity == ValidationSeverity::Info)
+            .count()
+    }
+
+    pub fn has_errors(&self) -> bool {
+        self.error_count() > 0
+    }
+
+    pub fn summary(&self) -> String {
+        format!(
+            "{} errors, {} warnings, {} info",
+            self.error_count(),
+            self.warning_count(),
+            self.info_count()
+        )
+    }
+}
+
+/// Game validator
+pub struct GameValidator;
+
+impl GameValidator {
+    /// Run all validation checks on the game
+    pub fn validate(game: &crate::daad::game::DaadGame) -> ValidationResults {
+        let mut results = ValidationResults::new();
+
+        // Run all validation checks
+        Self::validate_locations(game, &mut results);
+        Self::validate_connections(game, &mut results);
+        Self::validate_objects(game, &mut results);
+        Self::validate_rules(game, &mut results);
+        Self::validate_flags(game, &mut results);
+        Self::validate_messages(game, &mut results);
+        Self::validate_vocabulary(game, &mut results);
+        Self::validate_starting_location(game, &mut results);
+        Self::validate_duplicate_ids(game, &mut results);
+
+        results
+    }
+
+    /// Validate locations
+    fn validate_locations(game: &crate::daad::game::DaadGame, results: &mut ValidationResults) {
+        // Check for empty names
+        for location in &game.locations {
+            if location.name.trim().is_empty() {
+                results.add_issue(ValidationIssue::new(
+                    ValidationSeverity::Error,
+                    "Location has empty name".to_string(),
+                    ValidationEntityType::Location(location.id),
+                ));
+            }
+
+            if location.description.trim().is_empty() {
+                results.add_issue(ValidationIssue::new(
+                    ValidationSeverity::Warning,
+                    "Location has empty description".to_string(),
+                    ValidationEntityType::Location(location.id),
+                ));
+            }
+        }
+
+        // Check for unreachable locations (except starting location)
+        let reachable = Self::find_reachable_locations(game);
+        for location in &game.locations {
+            if location.id != game.starting_location && !reachable.contains(&location.id) {
+                results.add_issue(ValidationIssue::new(
+                    ValidationSeverity::Warning,
+                    format!("Location '{}' is unreachable (no connections leading to it)", location.name),
+                    ValidationEntityType::Location(location.id),
+                ));
+            }
+        }
+    }
+
+    /// Find all reachable locations from the starting location
+    fn find_reachable_locations(game: &crate::daad::game::DaadGame) -> std::collections::HashSet<u8> {
+        let mut reachable = std::collections::HashSet::new();
+        let mut to_visit = vec![game.starting_location];
+        reachable.insert(game.starting_location);
+
+        while let Some(current_id) = to_visit.pop() {
+            if let Some(location) = game.locations.iter().find(|l| l.id == current_id) {
+                for connection in &location.connections {
+                    if reachable.insert(connection.target_location) {
+                        to_visit.push(connection.target_location);
+                    }
+                }
+            }
+        }
+
+        reachable
+    }
+
+    /// Validate connections
+    fn validate_connections(game: &crate::daad::game::DaadGame, results: &mut ValidationResults) {
+        for location in &game.locations {
+            for (idx, connection) in location.connections.iter().enumerate() {
+                // Check if target location exists
+                if !game.locations.iter().any(|l| l.id == connection.target_location) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!(
+                            "Connection {:?} points to non-existent location {}",
+                            connection.direction, connection.target_location
+                        ),
+                        ValidationEntityType::Connection {
+                            location_id: location.id,
+                            index: idx,
+                        },
+                    ));
+                }
+
+                // Check if condition exists (if specified)
+                if let Some(condition_id) = connection.condition {
+                    if condition_id >= game.rules.len() {
+                        results.add_issue(ValidationIssue::new(
+                            ValidationSeverity::Error,
+                            format!(
+                                "Connection {:?} references non-existent condition rule {}",
+                                connection.direction, condition_id
+                            ),
+                            ValidationEntityType::Connection {
+                                location_id: location.id,
+                                index: idx,
+                            },
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    /// Validate objects
+    fn validate_objects(game: &crate::daad::game::DaadGame, results: &mut ValidationResults) {
+        for object in &game.objects {
+            // Check for empty names
+            if object.name.trim().is_empty() {
+                results.add_issue(ValidationIssue::new(
+                    ValidationSeverity::Error,
+                    "Object has empty name".to_string(),
+                    ValidationEntityType::Object(object.id),
+                ));
+            }
+
+            if object.noun.trim().is_empty() {
+                results.add_issue(ValidationIssue::new(
+                    ValidationSeverity::Warning,
+                    "Object has empty noun".to_string(),
+                    ValidationEntityType::Object(object.id),
+                ));
+            }
+
+            // Check if location exists (if object is at a location)
+            if let crate::daad::types::ObjectLocation::Location(loc_id) = object.location {
+                if !game.locations.iter().any(|l| l.id == loc_id) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Object '{}' is at non-existent location {}", object.name, loc_id),
+                        ValidationEntityType::Object(object.id),
+                    ));
+                }
+            }
+
+            // Check if container object exists (if object is inside another object)
+            if let crate::daad::types::ObjectLocation::Inside(container_id) = object.location {
+                if let Some(container) = game.objects.iter().find(|o| o.id == container_id) {
+                    if !container.is_container {
+                        results.add_issue(ValidationIssue::new(
+                            ValidationSeverity::Error,
+                            format!(
+                                "Object '{}' is inside object '{}', but it's not a container",
+                                object.name, container.name
+                            ),
+                            ValidationEntityType::Object(object.id),
+                        ));
+                    }
+                } else {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!(
+                            "Object '{}' is inside non-existent object {}",
+                            object.name, container_id
+                        ),
+                        ValidationEntityType::Object(object.id),
+                    ));
+                }
+            }
+        }
+    }
+
+    /// Validate rules
+    fn validate_rules(game: &crate::daad::game::DaadGame, results: &mut ValidationResults) {
+        for rule in &game.rules {
+            // Check for empty names
+            if rule.name.trim().is_empty() {
+                results.add_issue(ValidationIssue::new(
+                    ValidationSeverity::Warning,
+                    "Rule has empty name".to_string(),
+                    ValidationEntityType::Rule(rule.id),
+                ));
+            }
+
+            // Validate conditions
+            for condition in &rule.conditions {
+                Self::validate_condition(game, results, rule.id, condition);
+            }
+
+            // Validate actions
+            for action in &rule.actions {
+                Self::validate_action(game, results, rule.id, action);
+            }
+        }
+    }
+
+    /// Validate a single condition
+    fn validate_condition(
+        game: &crate::daad::game::DaadGame,
+        results: &mut ValidationResults,
+        rule_id: usize,
+        condition: &crate::daad::types::Condition,
+    ) {
+        use crate::daad::types::ConditionType;
+
+        match &condition.condition_type {
+            ConditionType::PlayerAt { location_id }
+            | ConditionType::PlayerNotAt { location_id } => {
+                if !game.locations.iter().any(|l| l.id == *location_id) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Condition references non-existent location {}", location_id),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+            }
+
+            ConditionType::ObjectPresent { object_id }
+            | ConditionType::ObjectAbsent { object_id }
+            | ConditionType::ObjectCarried { object_id }
+            | ConditionType::ObjectNotCarried { object_id }
+            | ConditionType::ObjectWorn { object_id }
+            | ConditionType::ObjectNotWorn { object_id }
+            | ConditionType::ObjectExists { object_id }
+            | ConditionType::ObjectDestroyed { object_id }
+            | ConditionType::ObjectWeightGreaterThan { object_id, .. }
+            | ConditionType::ObjectIsContainer { object_id }
+            | ConditionType::ObjectIsWearable { object_id } => {
+                if !game.objects.iter().any(|o| o.id == *object_id) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Condition references non-existent object {}", object_id),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+            }
+
+            ConditionType::ObjectAt { object_id, location_id }
+            | ConditionType::ObjectNotAt { object_id, location_id } => {
+                if !game.objects.iter().any(|o| o.id == *object_id) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Condition references non-existent object {}", object_id),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+                if !game.locations.iter().any(|l| l.id == *location_id) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Condition references non-existent location {}", location_id),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+            }
+
+            ConditionType::FlagEquals { flag_id, .. }
+            | ConditionType::FlagNotEquals { flag_id, .. }
+            | ConditionType::FlagGreaterThan { flag_id, .. }
+            | ConditionType::FlagLessThan { flag_id, .. }
+            | ConditionType::FlagZero { flag_id }
+            | ConditionType::FlagNotZero { flag_id } => {
+                if !game.flags.iter().any(|f| f.id == *flag_id) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Condition references non-existent flag {}", flag_id),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+            }
+
+            ConditionType::FlagsSame { flag1, flag2 }
+            | ConditionType::FlagsNotSame { flag1, flag2 } => {
+                if !game.flags.iter().any(|f| f.id == *flag1) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Condition references non-existent flag {}", flag1),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+                if !game.flags.iter().any(|f| f.id == *flag2) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Condition references non-existent flag {}", flag2),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+            }
+
+            _ => {} // Other condition types don't reference game entities
+        }
+    }
+
+    /// Validate a single action
+    fn validate_action(
+        game: &crate::daad::game::DaadGame,
+        results: &mut ValidationResults,
+        rule_id: usize,
+        action: &crate::daad::types::Action,
+    ) {
+        use crate::daad::types::ActionType;
+
+        match &action.action_type {
+            ActionType::GetObject { object_id }
+            | ActionType::DropObject { object_id }
+            | ActionType::WearObject { object_id }
+            | ActionType::RemoveObject { object_id }
+            | ActionType::CreateObject { object_id }
+            | ActionType::DestroyObject { object_id }
+            | ActionType::DisplayObjectName { object_id } => {
+                if !game.objects.iter().any(|o| o.id == *object_id) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Action references non-existent object {}", object_id),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+            }
+
+            ActionType::MoveObject { object_id, .. } => {
+                if !game.objects.iter().any(|o| o.id == *object_id) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Action references non-existent object {}", object_id),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+            }
+
+            ActionType::SwapObjects { object1, object2 } => {
+                if !game.objects.iter().any(|o| o.id == *object1) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Action references non-existent object {}", object1),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+                if !game.objects.iter().any(|o| o.id == *object2) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Action references non-existent object {}", object2),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+            }
+
+            ActionType::PlaceObject { object_id, location_id } => {
+                if !game.objects.iter().any(|o| o.id == *object_id) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Action references non-existent object {}", object_id),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+                if !game.locations.iter().any(|l| l.id == *location_id) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Action references non-existent location {}", location_id),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+            }
+
+            ActionType::ListObjects { location_id } => {
+                if !game.locations.iter().any(|l| l.id == *location_id) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Action references non-existent location {}", location_id),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+            }
+
+            ActionType::SetFlag { flag_id, .. }
+            | ActionType::IncrementFlag { flag_id }
+            | ActionType::DecrementFlag { flag_id }
+            | ActionType::ClearFlag { flag_id }
+            | ActionType::SetBit { flag_id }
+            | ActionType::AddToFlag { flag_id, .. }
+            | ActionType::SubtractFromFlag { flag_id, .. } => {
+                if !game.flags.iter().any(|f| f.id == *flag_id) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Action references non-existent flag {}", flag_id),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+            }
+
+            ActionType::CopyFlag { dest_flag, source_flag } => {
+                if !game.flags.iter().any(|f| f.id == *dest_flag) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Action references non-existent flag {}", dest_flag),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+                if !game.flags.iter().any(|f| f.id == *source_flag) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Action references non-existent flag {}", source_flag),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+            }
+
+            ActionType::GoToLocation { location_id }
+            | ActionType::XTo { location_id } => {
+                if !game.locations.iter().any(|l| l.id == *location_id) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Error,
+                        format!("Action references non-existent location {}", location_id),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+            }
+
+            ActionType::PlaySound { sound_id }
+            | ActionType::StopSound { sound_id } => {
+                if !game.sounds.iter().any(|s| s.id == *sound_id) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Warning,
+                        format!("Action references non-existent sound {}", sound_id),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+            }
+
+            ActionType::Picture { picture_id }
+            | ActionType::XPicture { picture_id } => {
+                if !game.pictures.iter().any(|p| p.id == *picture_id) {
+                    results.add_issue(ValidationIssue::new(
+                        ValidationSeverity::Warning,
+                        format!("Action references non-existent picture {}", picture_id),
+                        ValidationEntityType::Rule(rule_id),
+                    ));
+                }
+            }
+
+            _ => {} // Other action types don't reference game entities
+        }
+    }
+
+    /// Validate flags
+    fn validate_flags(game: &crate::daad::game::DaadGame, results: &mut ValidationResults) {
+        for flag in &game.flags {
+            if flag.name.trim().is_empty() {
+                results.add_issue(ValidationIssue::new(
+                    ValidationSeverity::Warning,
+                    "Flag has empty name".to_string(),
+                    ValidationEntityType::Flag(flag.id),
+                ));
+            }
+        }
+    }
+
+    /// Validate messages
+    fn validate_messages(game: &crate::daad::game::DaadGame, results: &mut ValidationResults) {
+        for (idx, message) in game.messages.iter().enumerate() {
+            if message.trim().is_empty() {
+                results.add_issue(ValidationIssue::new(
+                    ValidationSeverity::Warning,
+                    "Message is empty".to_string(),
+                    ValidationEntityType::Message(idx),
+                ));
+            }
+        }
+    }
+
+    /// Validate vocabulary
+    fn validate_vocabulary(game: &crate::daad::game::DaadGame, results: &mut ValidationResults) {
+        use std::collections::HashSet;
+
+        // Check for duplicate words
+        let mut seen_words = HashSet::new();
+        for entry in &game.vocabulary {
+            let key = (entry.word.clone(), entry.word_type);
+            if !seen_words.insert(key.clone()) {
+                results.add_issue(ValidationIssue::new(
+                    ValidationSeverity::Warning,
+                    format!(
+                        "Duplicate vocabulary word '{}' of type {:?}",
+                        entry.word, entry.word_type
+                    ),
+                    ValidationEntityType::Vocabulary(entry.word.clone()),
+                ));
+            }
+        }
+    }
+
+    /// Validate starting location
+    fn validate_starting_location(game: &crate::daad::game::DaadGame, results: &mut ValidationResults) {
+        if !game.locations.iter().any(|l| l.id == game.starting_location) {
+            results.add_issue(ValidationIssue::new(
+                ValidationSeverity::Error,
+                format!(
+                    "Starting location {} does not exist",
+                    game.starting_location
+                ),
+                ValidationEntityType::General,
+            ));
+        }
+    }
+
+    /// Validate for duplicate IDs
+    fn validate_duplicate_ids(game: &crate::daad::game::DaadGame, results: &mut ValidationResults) {
+        use std::collections::HashSet;
+
+        // Check location IDs
+        let mut location_ids = HashSet::new();
+        for location in &game.locations {
+            if !location_ids.insert(location.id) {
+                results.add_issue(ValidationIssue::new(
+                    ValidationSeverity::Error,
+                    format!("Duplicate location ID {}", location.id),
+                    ValidationEntityType::Location(location.id),
+                ));
+            }
+        }
+
+        // Check object IDs
+        let mut object_ids = HashSet::new();
+        for object in &game.objects {
+            if !object_ids.insert(object.id) {
+                results.add_issue(ValidationIssue::new(
+                    ValidationSeverity::Error,
+                    format!("Duplicate object ID {}", object.id),
+                    ValidationEntityType::Object(object.id),
+                ));
+            }
+        }
+
+        // Check flag IDs
+        let mut flag_ids = HashSet::new();
+        for flag in &game.flags {
+            if !flag_ids.insert(flag.id) {
+                results.add_issue(ValidationIssue::new(
+                    ValidationSeverity::Error,
+                    format!("Duplicate flag ID {}", flag.id),
+                    ValidationEntityType::Flag(flag.id),
+                ));
+            }
+        }
+    }
+}

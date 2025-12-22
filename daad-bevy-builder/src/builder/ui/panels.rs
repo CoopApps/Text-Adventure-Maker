@@ -10,6 +10,7 @@ use super::playtest_ui::{render_playtest_panel, PlaytestState};
 use super::templates_ui::render_templates_panel;
 use super::dialogue_ui::{render_dialogue_panel, DialogueEditorState};
 use super::debug_ui::render_debug_panel;
+use super::components::ValidationResults;
 
 /// Render the active panel content
 pub fn render_active_panel(
@@ -19,6 +20,7 @@ pub fn render_active_panel(
     dialogue: Res<DialogueEditorState>,
     debug: Res<DebugState>,
     vocab_search: Res<VocabularySearchState>,
+    validation: Res<ValidationResults>,
     query: Query<Entity, With<PanelContent>>,
 ) {
     // Clean up old panel content
@@ -59,7 +61,7 @@ pub fn render_active_panel(
                 Panel::Sounds => render_sound_panel(parent, &state),
                 Panel::Templates => render_templates_panel(parent, &state),
                 Panel::Dialogue => render_dialogue_panel(parent, &state, &dialogue),
-                Panel::Analytics => render_analytics_panel(parent, &state),
+                Panel::Analytics => render_analytics_panel(parent, &state, &validation),
                 Panel::Messages => render_messages_panel(parent, &state),
                 Panel::Debug => render_debug_panel(parent, &state, &debug),
                 Panel::Preview => render_playtest_panel(parent, &state, &playtest),
