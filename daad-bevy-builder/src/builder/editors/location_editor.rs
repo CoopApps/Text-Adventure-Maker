@@ -954,7 +954,8 @@ pub(crate) struct ConnectionPreview;
 
 /// Handle edit location properties button clicks
 pub fn handle_edit_location_properties_button(
-    mut state: ResMut<BuilderState>,
+    state: Res<BuilderState>,
+    mut modal_state: ResMut<crate::builder::ui::components::LocationEditorModalState>,
     mut interaction_query: Query<
         (&Interaction, &EditLocationPropertiesButton),
         Changed<Interaction>,
@@ -962,10 +963,15 @@ pub fn handle_edit_location_properties_button(
 ) {
     for (interaction, button) in interaction_query.iter() {
         if *interaction == Interaction::Pressed {
-            // Set editing mode to this location
-            state.start_editing(EditMode::Location(button.location_id));
-            state.mark_dirty();
-            info!("Editing location {}", button.location_id);
+            // Find the location and open the modal with its current properties
+            if let Some(location) = state.current_game.locations.iter().find(|l| l.id == button.location_id) {
+                modal_state.open(
+                    location.id,
+                    location.name.clone(),
+                    location.description.clone(),
+                    location.is_dark,
+                );
+            }
         }
     }
 }

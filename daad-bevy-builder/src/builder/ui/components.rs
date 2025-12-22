@@ -1755,3 +1755,488 @@ pub fn validate_daad_word(value: &str) -> ValidationResult {
     }
     ValidationResult::Valid
 }
+
+// ============================================================================
+// LOCATION EDITOR MODAL
+// ============================================================================
+
+/// Location editor modal state
+#[derive(Resource)]
+pub struct LocationEditorModalState {
+    pub is_open: bool,
+    pub location_id: u8,
+    pub name: String,
+    pub description: String,
+    pub is_dark: bool,
+}
+
+impl Default for LocationEditorModalState {
+    fn default() -> Self {
+        Self {
+            is_open: false,
+            location_id: 0,
+            name: String::new(),
+            description: String::new(),
+            is_dark: false,
+        }
+    }
+}
+
+impl LocationEditorModalState {
+    pub fn open(&mut self, location_id: u8, name: String, description: String, is_dark: bool) {
+        self.is_open = true;
+        self.location_id = location_id;
+        self.name = name;
+        self.description = description;
+        self.is_dark = is_dark;
+    }
+
+    pub fn close(&mut self) {
+        self.is_open = false;
+    }
+}
+
+/// Location name input button
+#[derive(Component)]
+pub struct LocationNameInputButton;
+
+/// Location description input button
+#[derive(Component)]
+pub struct LocationDescriptionInputButton;
+
+/// Location dark toggle button
+#[derive(Component)]
+pub struct LocationDarkToggleButton;
+
+/// Save location button
+#[derive(Component)]
+pub struct SaveLocationButton;
+
+/// Cancel location edit button
+#[derive(Component)]
+pub struct CancelLocationEditButton;
+
+/// Location editor modal marker
+#[derive(Component)]
+pub struct LocationEditorModal;
+
+/// Render location editor modal
+pub fn render_location_editor_modal(
+    mut commands: Commands,
+    modal_state: Res<LocationEditorModalState>,
+    query: Query<Entity, With<LocationEditorModal>>,
+) {
+    if !modal_state.is_open {
+        // Close any existing modals
+        for entity in query.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+        return;
+    }
+
+    // Don't re-render if already exists
+    if !query.is_empty() {
+        return;
+    }
+
+    // Create modal backdrop
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                background_color: Color::rgba(0.0, 0.0, 0.0, 0.7).into(),
+                z_index: ZIndex::Global(100),
+                ..default()
+            },
+            ModalBackdrop,
+            LocationEditorModal,
+        ))
+        .with_children(|backdrop| {
+            // Modal container
+            backdrop
+                .spawn(NodeBundle {
+                    style: Style {
+                        flex_direction: FlexDirection::Column,
+                        padding: UiRect::all(Val::Px(25.0)),
+                        row_gap: Val::Px(15.0),
+                        width: Val::Px(500.0),
+                        border: UiRect::all(Val::Px(3.0)),
+                        overflow: Overflow::clip_y(),
+                        ..default()
+                    },
+                    background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                    border_color: Color::rgb(0.4, 0.6, 0.8).into(),
+                    ..default()
+                })
+                .with_children(|modal| {
+                // Title
+                modal.spawn(TextBundle::from_section(
+                    format!("Edit Location #{}", modal_state.location_id),
+                    TextStyle {
+                        font_size: 20.0,
+                        color: Color::WHITE,
+                        ..default()
+                    },
+                ));
+
+                // Name input
+                modal.spawn(TextBundle::from_section(
+                    "Name:",
+                    TextStyle {
+                        font_size: 14.0,
+                        color: Color::rgb(0.8, 0.8, 0.8),
+                        ..default()
+                    },
+                ));
+
+                modal
+                    .spawn((
+                        ButtonBundle {
+                            style: Style {
+                                padding: UiRect::all(Val::Px(10.0)),
+                                width: Val::Percent(100.0),
+                                justify_content: JustifyContent::FlexStart,
+                                border: UiRect::all(Val::Px(2.0)),
+                                ..default()
+                            },
+                            background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                            border_color: Color::rgb(0.4, 0.5, 0.6).into(),
+                            ..default()
+                        },
+                        LocationNameInputButton,
+                    ))
+                    .with_children(|btn| {
+                        btn.spawn(TextBundle::from_section(
+                            if modal_state.name.is_empty() {
+                                "Click to enter name..."
+                            } else {
+                                &modal_state.name
+                            },
+                            TextStyle {
+                                font_size: 14.0,
+                                color: if modal_state.name.is_empty() {
+                                    Color::rgb(0.5, 0.5, 0.5)
+                                } else {
+                                    Color::rgb(0.9, 0.9, 0.9)
+                                },
+                                ..default()
+                            },
+                        ));
+                    });
+
+                // Description input
+                modal.spawn(TextBundle::from_section(
+                    "Description:",
+                    TextStyle {
+                        font_size: 14.0,
+                        color: Color::rgb(0.8, 0.8, 0.8),
+                        ..default()
+                    },
+                ));
+
+                modal
+                    .spawn((
+                        ButtonBundle {
+                            style: Style {
+                                padding: UiRect::all(Val::Px(10.0)),
+                                width: Val::Percent(100.0),
+                                min_height: Val::Px(80.0),
+                                justify_content: JustifyContent::FlexStart,
+                                align_items: AlignItems::FlexStart,
+                                border: UiRect::all(Val::Px(2.0)),
+                                ..default()
+                            },
+                            background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                            border_color: Color::rgb(0.4, 0.5, 0.6).into(),
+                            ..default()
+                        },
+                        LocationDescriptionInputButton,
+                    ))
+                    .with_children(|btn| {
+                        btn.spawn(TextBundle::from_section(
+                            if modal_state.description.is_empty() {
+                                "Click to enter description..."
+                            } else {
+                                &modal_state.description
+                            },
+                            TextStyle {
+                                font_size: 14.0,
+                                color: if modal_state.description.is_empty() {
+                                    Color::rgb(0.5, 0.5, 0.5)
+                                } else {
+                                    Color::rgb(0.9, 0.9, 0.9)
+                                },
+                                ..default()
+                            },
+                        ));
+                    });
+
+                // Dark location toggle
+                modal.spawn(NodeBundle {
+                    style: Style {
+                        display: Display::Flex,
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
+                        column_gap: Val::Px(10.0),
+                        padding: UiRect::all(Val::Px(8.0)),
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn((
+                        ButtonBundle {
+                            style: Style {
+                                padding: UiRect::all(Val::Px(10.0)),
+                                border: UiRect::all(Val::Px(2.0)),
+                                ..default()
+                            },
+                            background_color: if modal_state.is_dark {
+                                Color::rgb(0.3, 0.5, 0.7)
+                            } else {
+                                Color::rgb(0.3, 0.3, 0.35)
+                            }
+                            .into(),
+                            border_color: if modal_state.is_dark {
+                                Color::rgb(0.5, 0.7, 0.9)
+                            } else {
+                                Color::rgb(0.4, 0.4, 0.45)
+                            }
+                            .into(),
+                            ..default()
+                        },
+                        LocationDarkToggleButton,
+                    ))
+                    .with_children(|btn| {
+                        btn.spawn(TextBundle::from_section(
+                            if modal_state.is_dark { "☑" } else { "☐" },
+                            TextStyle {
+                                font_size: 16.0,
+                                color: Color::WHITE,
+                                ..default()
+                            },
+                        ));
+                    });
+
+                    row.spawn(TextBundle::from_section(
+                        "Dark Location (requires light source)",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::rgb(0.8, 0.8, 0.8),
+                            ..default()
+                        },
+                    ));
+                });
+
+                // Action buttons
+                modal.spawn(NodeBundle {
+                    style: Style {
+                        display: Display::Flex,
+                        flex_direction: FlexDirection::Row,
+                        justify_content: JustifyContent::FlexEnd,
+                        column_gap: Val::Px(10.0),
+                        margin: UiRect::top(Val::Px(20.0)),
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|buttons| {
+                    // Cancel button
+                    buttons
+                        .spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    padding: UiRect::all(Val::Px(12.0)),
+                                    border: UiRect::all(Val::Px(1.0)),
+                                    ..default()
+                                },
+                                background_color: Color::rgb(0.4, 0.4, 0.4).into(),
+                                border_color: Color::rgb(0.5, 0.5, 0.5).into(),
+                                ..default()
+                            },
+                            CancelLocationEditButton,
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn(TextBundle::from_section(
+                                "Cancel",
+                                TextStyle {
+                                    font_size: 14.0,
+                                    color: Color::WHITE,
+                                    ..default()
+                                },
+                            ));
+                        });
+
+                    // Save button
+                    buttons
+                        .spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    padding: UiRect::all(Val::Px(12.0)),
+                                    border: UiRect::all(Val::Px(1.0)),
+                                    ..default()
+                                },
+                                background_color: Color::rgb(0.3, 0.7, 0.4).into(),
+                                border_color: Color::rgb(0.4, 0.8, 0.5).into(),
+                                ..default()
+                            },
+                            SaveLocationButton,
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn(TextBundle::from_section(
+                                "Save",
+                                TextStyle {
+                                    font_size: 14.0,
+                                    color: Color::WHITE,
+                                    ..default()
+                                },
+                            ));
+                        });
+                });
+                });
+        });
+}
+
+/// Handle location name input button
+pub fn handle_location_name_input_button(
+    modal_state: Res<LocationEditorModalState>,
+    mut text_input_state: ResMut<TextInputModalState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<LocationNameInputButton>),
+    >,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            text_input_state.open_single_line(
+                "Location Name",
+                &modal_state.name,
+                "Enter location name",
+                "location_name",
+            );
+        }
+    }
+}
+
+/// Handle location description input button
+pub fn handle_location_description_input_button(
+    modal_state: Res<LocationEditorModalState>,
+    mut text_input_state: ResMut<TextInputModalState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<LocationDescriptionInputButton>),
+    >,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            text_input_state.open_multiline(
+                "Location Description",
+                &modal_state.description,
+                "Enter location description",
+                "location_description",
+            );
+        }
+    }
+}
+
+/// Handle location dark toggle button
+pub fn handle_location_dark_toggle_button(
+    mut modal_state: ResMut<LocationEditorModalState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<LocationDarkToggleButton>),
+    >,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            modal_state.is_dark = !modal_state.is_dark;
+        }
+    }
+}
+
+/// Handle save location button
+pub fn handle_save_location_button(
+    mut state: ResMut<crate::builder::state::BuilderState>,
+    mut modal_state: ResMut<LocationEditorModalState>,
+    mut notification_manager: ResMut<NotificationManager>,
+    time: Res<Time>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<SaveLocationButton>),
+    >,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            let current_time = time.elapsed_seconds_f64();
+
+            // Validate name
+            if modal_state.name.trim().is_empty() {
+                notification_manager.add_error("Location name cannot be empty", current_time);
+                continue;
+            }
+
+            // Find and update the location
+            let location_id = modal_state.location_id;
+            let name = modal_state.name.clone();
+            let description = modal_state.description.clone();
+            let is_dark = modal_state.is_dark;
+
+            if let Some(location) = state.current_game.locations.iter_mut()
+                .find(|l| l.id == location_id) {
+                location.name = name.clone();
+                location.description = description;
+                location.is_dark = is_dark;
+
+                state.mark_dirty();
+                notification_manager.add_success(
+                    format!("Updated location '{}'", name),
+                    current_time
+                );
+                modal_state.close();
+            } else {
+                notification_manager.add_error(
+                    format!("Location #{} not found", location_id),
+                    current_time
+                );
+            }
+        }
+    }
+}
+
+/// Handle cancel location edit button
+pub fn handle_cancel_location_edit_button(
+    mut modal_state: ResMut<LocationEditorModalState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<CancelLocationEditButton>),
+    >,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            modal_state.close();
+        }
+    }
+}
+
+/// Update location editor modal with text input results
+pub fn update_location_editor_with_text_input(
+    mut modal_state: ResMut<LocationEditorModalState>,
+    text_input_state: Res<TextInputModalState>,
+) {
+    if text_input_state.is_changed() && !text_input_state.is_open {
+        if let Some(callback_id) = &text_input_state.callback_id {
+            if callback_id == "location_name" {
+                modal_state.name = text_input_state.current_value.clone();
+            } else if callback_id == "location_description" {
+                modal_state.description = text_input_state.current_value.clone();
+            }
+        }
+    }
+}

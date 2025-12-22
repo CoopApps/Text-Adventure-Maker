@@ -24,6 +24,7 @@ fn main() {
         .init_resource::<builder::ui::components::TextInputModalState>()
         .init_resource::<builder::ui::components::ConfirmationModalState>()
         .init_resource::<builder::ui::components::ConnectionEditorModalState>()
+        .init_resource::<builder::ui::components::LocationEditorModalState>()
         .init_resource::<builder::ui::components::TooltipState>()
         .init_resource::<builder::ui::components::NotificationManager>()
         .init_resource::<builder::ui::vocabulary_ui::VocabularySearchState>()
@@ -103,7 +104,7 @@ fn main() {
             builder::editors::rule_editor::handle_move_action_down_button,
         ))
         .add_systems(Update, (
-            // Modal systems (text input, confirmation, connection editor, condition/action)
+            // Modal systems (text input, confirmation, connection editor)
             builder::ui::components::handle_close_modal_button,
             builder::ui::components::render_text_input_modal,
             builder::ui::components::handle_text_input_modal_keyboard,
@@ -116,6 +117,16 @@ fn main() {
             builder::ui::components::handle_target_location_button,
             builder::ui::components::handle_save_connection_button,
             builder::ui::components::handle_cancel_connection_button,
+        ))
+        .add_systems(Update, (
+            // Location editor modal and condition/action modals
+            builder::ui::components::render_location_editor_modal,
+            builder::ui::components::handle_location_name_input_button,
+            builder::ui::components::handle_location_description_input_button,
+            builder::ui::components::handle_location_dark_toggle_button,
+            builder::ui::components::handle_save_location_button,
+            builder::ui::components::handle_cancel_location_edit_button,
+            builder::ui::components::update_location_editor_with_text_input,
             builder::ui::condition_action_modals::render_condition_editor_modal,
             builder::ui::condition_action_modals::render_action_editor_modal,
             builder::ui::condition_action_modals::handle_condition_type_button,
