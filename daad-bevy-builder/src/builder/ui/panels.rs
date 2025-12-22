@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use crate::builder::state::{BuilderState, Panel};
+use super::vocabulary_ui::render_vocabulary_panel;
 
 /// Render the active panel content
 pub fn render_active_panel(
@@ -332,94 +333,6 @@ fn render_flags_panel(parent: &mut ChildBuilder, state: &BuilderState) {
         TextStyle {
             font_size: 16.0,
             color: Color::rgb(0.4, 0.8, 0.4),
-            ..default()
-        },
-    ));
-}
-
-fn render_vocabulary_panel(parent: &mut ChildBuilder, state: &BuilderState) {
-    parent.spawn(TextBundle::from_section(
-        "📖 Vocabulary",
-        TextStyle {
-            font_size: 24.0,
-            color: Color::WHITE,
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        "\nWords in your game's vocabulary:",
-        TextStyle {
-            font_size: 16.0,
-            color: Color::rgb(0.8, 0.8, 0.8),
-            ..default()
-        },
-    ));
-
-    // Group vocabulary by type
-    use crate::daad::game::VocabType;
-    let word_types = [
-        (VocabType::Verb, "🔨 Verbs", Color::rgb(0.9, 0.6, 0.6)),
-        (VocabType::Noun, "📦 Nouns", Color::rgb(0.6, 0.9, 0.6)),
-        (VocabType::Adjective, "✨ Adjectives", Color::rgb(0.6, 0.6, 0.9)),
-        (VocabType::Adverb, "⚡ Adverbs", Color::rgb(0.9, 0.9, 0.6)),
-        (VocabType::Preposition, "🔗 Prepositions", Color::rgb(0.9, 0.6, 0.9)),
-        (VocabType::Pronoun, "👤 Pronouns", Color::rgb(0.6, 0.9, 0.9)),
-        (VocabType::Conjugation, "🔀 Conjugations", Color::rgb(0.8, 0.8, 0.8)),
-    ];
-
-    for (word_type, title, color) in word_types {
-        let words_of_type: Vec<_> = state.current_game.vocabulary
-            .iter()
-            .filter(|v| v.word_type == word_type)
-            .collect();
-
-        if !words_of_type.is_empty() {
-            parent.spawn(TextBundle::from_section(
-                format!("\n{} ({})", title, words_of_type.len()),
-                TextStyle {
-                    font_size: 18.0,
-                    color,
-                    ..default()
-                },
-            ));
-
-            for vocab in words_of_type {
-                parent.spawn(TextBundle::from_section(
-                    format!("  • {} (ID: {})", vocab.word, vocab.id),
-                    TextStyle {
-                        font_size: 14.0,
-                        color: Color::rgb(0.7, 0.7, 0.7),
-                        ..default()
-                    },
-                ));
-            }
-        }
-    }
-
-    parent.spawn(TextBundle::from_section(
-        format!("\n\nTotal words: {}", state.current_game.vocabulary.len()),
-        TextStyle {
-            font_size: 16.0,
-            color: Color::rgb(0.6, 0.8, 1.0),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        "\n[+] Add New Word (TODO: Button)",
-        TextStyle {
-            font_size: 16.0,
-            color: Color::rgb(0.4, 0.8, 0.4),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        "\nNote: DAAD limits words to 5 characters maximum.",
-        TextStyle {
-            font_size: 12.0,
-            color: Color::rgb(0.5, 0.5, 0.6),
             ..default()
         },
     ));
