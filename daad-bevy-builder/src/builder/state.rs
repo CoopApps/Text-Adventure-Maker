@@ -19,6 +19,7 @@ pub struct BuilderState {
     pub recent_files: Vec<String>,
     pub auto_save_enabled: bool,
     pub last_save_time: f64,
+    pub show_help_overlay: bool,
 }
 
 impl Default for BuilderState {
@@ -38,6 +39,7 @@ impl Default for BuilderState {
             recent_files: Vec::new(),
             auto_save_enabled: true,  // Auto-save enabled by default
             last_save_time: 0.0,
+            show_help_overlay: false,
         }
     }
 }
