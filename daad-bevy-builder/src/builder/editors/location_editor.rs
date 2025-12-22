@@ -701,3 +701,51 @@ pub(crate) struct ConnectionCreationState {
 // Connection preview component
 #[derive(Component)]
 pub(crate) struct ConnectionPreview;
+
+/// Handle edit location properties button clicks
+pub fn handle_edit_location_properties_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &EditLocationPropertiesButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            // Set editing mode to this location
+            state.start_editing(EditMode::Location(button.location_id));
+            state.mark_dirty();
+            info!("Editing location {}", button.location_id);
+        }
+    }
+}
+
+/// Handle delete location button clicks
+pub fn handle_delete_location_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &DeleteLocationButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            // Find and remove the location
+            if let Some(pos) = state
+                .current_game
+                .locations
+                .iter()
+                .position(|l| l.id == button.location_id)
+            {
+                state.current_game.locations.remove(pos);
+                state.mark_dirty();
+                info!("Deleted location {}", button.location_id);
+
+                // Also remove any connections to/from this location
+                for location in &mut state.current_game.locations {
+                    location.connections.retain(|c| c.target_location != button.location_id);
+                }
+            }
+        }
+    }
+}

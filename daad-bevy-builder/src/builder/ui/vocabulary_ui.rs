@@ -16,6 +16,9 @@ pub struct RemoveWordButton {
 }
 
 #[derive(Component)]
+pub struct ImportStandardVocabularyButton;
+
+#[derive(Component)]
 pub struct WordTypeFilter {
     pub filter: Option<VocabType>,
 }
@@ -140,6 +143,52 @@ pub fn render_vocabulary_panel(parent: &mut ChildBuilder, state: &BuilderState) 
             });
         }
     }
+
+    // Bulk import section
+    parent.spawn(TextBundle::from_section(
+        "\n⚡ Quick Actions",
+        TextStyle {
+            font_size: 18.0,
+            color: Color::rgb(1.0, 0.9, 0.6),
+            ..default()
+        },
+    ));
+
+    // Import standard vocabulary button
+    parent
+        .spawn((
+            ButtonBundle {
+                style: Style {
+                    padding: UiRect::all(Val::Px(15.0)),
+                    margin: UiRect::vertical(Val::Px(10.0)),
+                    border: UiRect::all(Val::Px(2.0)),
+                    ..default()
+                },
+                background_color: Color::rgb(0.3, 0.6, 0.3).into(),
+                border_color: Color::rgb(0.4, 0.8, 0.4).into(),
+                ..default()
+            },
+            ImportStandardVocabularyButton,
+        ))
+        .with_children(|btn| {
+            btn.spawn(TextBundle::from_section(
+                "📥 Import All Standard English Verbs",
+                TextStyle {
+                    font_size: 15.0,
+                    color: Color::WHITE,
+                    ..default()
+                },
+            ));
+        });
+
+    parent.spawn(TextBundle::from_section(
+        "Imports common verbs (TAKE, DROP, LOOK, EXAMINE, etc.) in one click",
+        TextStyle {
+            font_size: 12.0,
+            color: Color::rgb(0.6, 0.6, 0.6),
+            ..default()
+        },
+    ));
 
     // Word library section
     parent.spawn(TextBundle::from_section(
@@ -294,6 +343,46 @@ pub fn render_vocabulary_panel(parent: &mut ChildBuilder, state: &BuilderState) 
             ..default()
         },
     ));
+}
+
+/// System to handle importing all standard vocabulary
+pub fn handle_import_standard_vocabulary_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<ImportStandardVocabularyButton>),
+    >,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            // Get all verbs from the library
+            let all_verbs = vocabulary_library::get_words_by_type(VocabType::Verb);
+
+            let mut imported_count = 0;
+            let mut next_id = state.current_game.vocabulary
+                .iter()
+                .map(|v| v.id)
+                .max()
+                .map_or(0, |max_id| max_id + 1);
+
+            for lib_word in all_verbs {
+                // Only add if not already in vocabulary
+                if !state.current_game.vocabulary.iter().any(|v| v.word == lib_word.word) {
+                    state.current_game.vocabulary.push(VocabEntry {
+                        word: lib_word.word.to_string(),
+                        word_type: lib_word.word_type,
+                        id: next_id,
+                        translations: std::collections::HashMap::new(),
+                    });
+                    next_id += 1;
+                    imported_count += 1;
+                }
+            }
+
+            state.mark_dirty();
+            info!("✅ Imported {} standard verbs to vocabulary", imported_count);
+        }
+    }
 }
 
 /// System to handle adding words from library

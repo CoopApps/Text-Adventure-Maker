@@ -84,6 +84,11 @@ pub struct DaadGame {
     pub supported_languages: Vec<Language>,
     pub default_language: Language,
 
+    // Game configuration
+    pub starting_location: u8,
+    pub max_carry_objects: u8,
+    pub max_carry_weight: u8,
+
     // MALUVA extension support
     pub maluva_enabled: bool,
     pub maluva_platform: MaluvaPlatform,
@@ -322,6 +327,9 @@ impl Default for DaadGame {
             pictures: vec![],
             supported_languages: vec![Language::English],
             default_language: Language::English,
+            starting_location: 0,
+            max_carry_objects: 4,
+            max_carry_weight: 100,
             maluva_enabled: false,
             maluva_platform: MaluvaPlatform::None,
         }

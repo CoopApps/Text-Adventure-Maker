@@ -34,6 +34,8 @@ fn main() {
             builder::editors::location_editor::render_location_editor,
             builder::editors::location_editor::handle_location_node_clicks,
             builder::editors::location_editor::handle_add_location_button,
+            builder::editors::location_editor::handle_edit_location_properties_button,
+            builder::editors::location_editor::handle_delete_location_button,
             builder::editors::location_editor::handle_location_drag,
             builder::editors::location_editor::handle_connection_creation,
             builder::editors::location_editor::render_connection_preview,
@@ -82,12 +84,19 @@ fn main() {
             // Vocabulary systems
             builder::ui::vocabulary_ui::handle_add_word_button,
             builder::ui::vocabulary_ui::handle_remove_word_button,
+            builder::ui::vocabulary_ui::handle_import_standard_vocabulary_button,
         ))
         .add_systems(Update, (
             // Game Info systems
             builder::ui::game_info_ui::handle_edit_title_button,
             builder::ui::game_info_ui::handle_edit_author_button,
             builder::ui::game_info_ui::handle_edit_version_button,
+            builder::ui::game_info_ui::handle_increment_starting_location,
+            builder::ui::game_info_ui::handle_decrement_starting_location,
+            builder::ui::game_info_ui::handle_increment_max_carry_objects,
+            builder::ui::game_info_ui::handle_decrement_max_carry_objects,
+            builder::ui::game_info_ui::handle_increment_max_carry_weight,
+            builder::ui::game_info_ui::handle_decrement_max_carry_weight,
         ))
         .add_systems(Update, (
             // Sound systems
