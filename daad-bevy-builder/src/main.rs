@@ -38,11 +38,13 @@ fn main() {
             builder::editors::location_editor::render_location_editor,
             builder::editors::location_editor::handle_location_node_clicks,
             builder::editors::location_editor::handle_add_location_button,
+            builder::editors::location_editor::handle_edit_location_button,
             builder::editors::location_editor::handle_edit_location_properties_button,
             builder::editors::location_editor::handle_delete_location_button,
             builder::editors::location_editor::handle_location_drag,
             builder::editors::location_editor::handle_connection_creation,
             builder::editors::location_editor::render_connection_preview,
+            builder::editors::location_editor::process_location_name_edit,
         ))
         .add_systems(Update, (
             // Object editor systems (sidebar and basic actions)
