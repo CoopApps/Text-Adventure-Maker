@@ -442,6 +442,62 @@ pub fn render_rule_detail_editor(
                                 ));
                             });
 
+                            // Move up button
+                            if idx > 0 {
+                                row.spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                                            ..default()
+                                        },
+                                        background_color: Color::rgb(0.3, 0.4, 0.5).into(),
+                                        ..default()
+                                    },
+                                    MoveConditionUpButton {
+                                        rule_index: selected_rule_idx,
+                                        condition_index: idx,
+                                    },
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn(TextBundle::from_section(
+                                        "↑",
+                                        TextStyle {
+                                            font_size: 11.0,
+                                            color: Color::WHITE,
+                                            ..default()
+                                        },
+                                    ));
+                                });
+                            }
+
+                            // Move down button
+                            if idx < rule.conditions.len() - 1 {
+                                row.spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                                            ..default()
+                                        },
+                                        background_color: Color::rgb(0.3, 0.4, 0.5).into(),
+                                        ..default()
+                                    },
+                                    MoveConditionDownButton {
+                                        rule_index: selected_rule_idx,
+                                        condition_index: idx,
+                                    },
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn(TextBundle::from_section(
+                                        "↓",
+                                        TextStyle {
+                                            font_size: 11.0,
+                                            color: Color::WHITE,
+                                            ..default()
+                                        },
+                                    ));
+                                });
+                            }
+
                             // Delete button
                             row.spawn((
                                 ButtonBundle {
@@ -578,6 +634,62 @@ pub fn render_rule_detail_editor(
                                     },
                                 ));
                             });
+
+                            // Move up button
+                            if idx > 0 {
+                                row.spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                                            ..default()
+                                        },
+                                        background_color: Color::rgb(0.4, 0.3, 0.2).into(),
+                                        ..default()
+                                    },
+                                    MoveActionUpButton {
+                                        rule_index: selected_rule_idx,
+                                        action_index: idx,
+                                    },
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn(TextBundle::from_section(
+                                        "↑",
+                                        TextStyle {
+                                            font_size: 11.0,
+                                            color: Color::WHITE,
+                                            ..default()
+                                        },
+                                    ));
+                                });
+                            }
+
+                            // Move down button
+                            if idx < rule.actions.len() - 1 {
+                                row.spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                                            ..default()
+                                        },
+                                        background_color: Color::rgb(0.4, 0.3, 0.2).into(),
+                                        ..default()
+                                    },
+                                    MoveActionDownButton {
+                                        rule_index: selected_rule_idx,
+                                        action_index: idx,
+                                    },
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn(TextBundle::from_section(
+                                        "↓",
+                                        TextStyle {
+                                            font_size: 11.0,
+                                            color: Color::WHITE,
+                                            ..default()
+                                        },
+                                    ));
+                                });
+                            }
 
                             // Delete button
                             row.spawn((
@@ -1007,4 +1119,137 @@ pub(crate) struct ToggleRuleEnabledButton {
 pub(crate) struct ProcessTableButton {
     rule_index: usize,
     process_table: ProcessTable,
+}
+
+// Reorder button components
+#[derive(Component)]
+pub(crate) struct MoveConditionUpButton {
+    rule_index: usize,
+    condition_index: usize,
+}
+
+#[derive(Component)]
+pub(crate) struct MoveConditionDownButton {
+    rule_index: usize,
+    condition_index: usize,
+}
+
+#[derive(Component)]
+pub(crate) struct MoveActionUpButton {
+    rule_index: usize,
+    action_index: usize,
+}
+
+#[derive(Component)]
+pub(crate) struct MoveActionDownButton {
+    rule_index: usize,
+    action_index: usize,
+}
+
+/// Handle move condition up button
+pub fn handle_move_condition_up_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &MoveConditionUpButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(rule) = state.current_game.rules.get_mut(button.rule_index) {
+                if button.condition_index > 0 && button.condition_index < rule.conditions.len() {
+                    rule.conditions.swap(button.condition_index, button.condition_index - 1);
+                    
+                    // Re-index after swap
+                    for (idx, condition) in rule.conditions.iter_mut().enumerate() {
+                        condition.id = idx;
+                    }
+                    
+                    state.unsaved_changes = true;
+                    info!("Moved condition {} up in rule {}", button.condition_index, button.rule_index);
+                }
+            }
+        }
+    }
+}
+
+/// Handle move condition down button
+pub fn handle_move_condition_down_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &MoveConditionDownButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(rule) = state.current_game.rules.get_mut(button.rule_index) {
+                if button.condition_index < rule.conditions.len() - 1 {
+                    rule.conditions.swap(button.condition_index, button.condition_index + 1);
+                    
+                    // Re-index after swap
+                    for (idx, condition) in rule.conditions.iter_mut().enumerate() {
+                        condition.id = idx;
+                    }
+                    
+                    state.unsaved_changes = true;
+                    info!("Moved condition {} down in rule {}", button.condition_index, button.rule_index);
+                }
+            }
+        }
+    }
+}
+
+/// Handle move action up button
+pub fn handle_move_action_up_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &MoveActionUpButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(rule) = state.current_game.rules.get_mut(button.rule_index) {
+                if button.action_index > 0 && button.action_index < rule.actions.len() {
+                    rule.actions.swap(button.action_index, button.action_index - 1);
+                    
+                    // Re-index after swap
+                    for (idx, action) in rule.actions.iter_mut().enumerate() {
+                        action.id = idx;
+                    }
+                    
+                    state.unsaved_changes = true;
+                    info!("Moved action {} up in rule {}", button.action_index, button.rule_index);
+                }
+            }
+        }
+    }
+}
+
+/// Handle move action down button
+pub fn handle_move_action_down_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &MoveActionDownButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(rule) = state.current_game.rules.get_mut(button.rule_index) {
+                if button.action_index < rule.actions.len() - 1 {
+                    rule.actions.swap(button.action_index, button.action_index + 1);
+                    
+                    // Re-index after swap
+                    for (idx, action) in rule.actions.iter_mut().enumerate() {
+                        action.id = idx;
+                    }
+                    
+                    state.unsaved_changes = true;
+                    info!("Moved action {} down in rule {}", button.action_index, button.rule_index);
+                }
+            }
+        }
+    }
 }

@@ -65,6 +65,13 @@ fn main() {
             builder::editors::rule_editor::handle_process_table_button,
         ))
         .add_systems(Update, (
+            // Rule reorder systems
+            builder::editors::rule_editor::handle_move_condition_up_button,
+            builder::editors::rule_editor::handle_move_condition_down_button,
+            builder::editors::rule_editor::handle_move_action_up_button,
+            builder::editors::rule_editor::handle_move_action_down_button,
+        ))
+        .add_systems(Update, (
             // Condition/Action modal systems
             builder::ui::components::handle_close_modal_button,
             builder::ui::components::render_text_input_modal,
