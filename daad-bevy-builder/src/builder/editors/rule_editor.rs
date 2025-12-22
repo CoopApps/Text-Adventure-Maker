@@ -223,25 +223,143 @@ pub fn render_rule_detail_editor(
                 RuleDetailEditor,
             ))
             .with_children(|parent| {
-                // Header
+                // Header with edit button
+                parent.spawn(NodeBundle {
+                    style: Style {
+                        display: Display::Flex,
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
+                        column_gap: Val::Px(10.0),
+                        margin: UiRect::bottom(Val::Px(10.0)),
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|row| {
+                    row.spawn(TextBundle::from_section(
+                        format!("Rule #{}: {}", selected_rule_idx, rule.name),
+                        TextStyle {
+                            font_size: 16.0,
+                            color: Color::rgb(0.8, 0.9, 1.0),
+                            ..default()
+                        },
+                    ));
+
+                    // Edit name button
+                    row.spawn((
+                        ButtonBundle {
+                            style: Style {
+                                padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                                ..default()
+                            },
+                            background_color: Color::rgb(0.4, 0.5, 0.6).into(),
+                            ..default()
+                        },
+                        EditRuleNameButton { rule_index: selected_rule_idx },
+                    ))
+                    .with_children(|btn| {
+                        btn.spawn(TextBundle::from_section(
+                            "✏️",
+                            TextStyle {
+                                font_size: 12.0,
+                                color: Color::WHITE,
+                                ..default()
+                            },
+                        ));
+                    });
+
+                    // Enable/Disable toggle
+                    row.spawn((
+                        ButtonBundle {
+                            style: Style {
+                                padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
+                                ..default()
+                            },
+                            background_color: if rule.enabled {
+                                Color::rgb(0.3, 0.6, 0.3)
+                            } else {
+                                Color::rgb(0.5, 0.3, 0.3)
+                            }.into(),
+                            ..default()
+                        },
+                        ToggleRuleEnabledButton { rule_index: selected_rule_idx },
+                    ))
+                    .with_children(|btn| {
+                        btn.spawn(TextBundle::from_section(
+                            if rule.enabled { "✓ Enabled" } else { "⏸ Disabled" },
+                            TextStyle {
+                                font_size: 11.0,
+                                color: Color::WHITE,
+                                ..default()
+                            },
+                        ));
+                    });
+                });
+
+                // Process table selector with buttons
                 parent.spawn(TextBundle::from_section(
-                    format!("Editing Rule #{}: {}", selected_rule_idx, rule.name),
+                    "Process Table:",
                     TextStyle {
-                        font_size: 16.0,
-                        color: Color::rgb(0.8, 0.9, 1.0),
+                        font_size: 13.0,
+                        color: Color::rgb(0.7, 0.7, 0.7),
                         ..default()
                     },
                 ));
 
-                // Process table selector
-                parent.spawn(TextBundle::from_section(
-                    format!("Process Table: {:?}", rule.process),
-                    TextStyle {
-                        font_size: 13.0,
-                        color: Color::rgb(0.9, 0.9, 0.9),
+                parent.spawn(NodeBundle {
+                    style: Style {
+                        display: Display::Flex,
+                        flex_direction: FlexDirection::Row,
+                        column_gap: Val::Px(6.0),
+                        margin: UiRect::bottom(Val::Px(10.0)),
                         ..default()
                     },
-                ));
+                    ..default()
+                })
+                .with_children(|row| {
+                    for (idx, (table, name)) in [
+                        (ProcessTable::Parsing, "PRO 0: Parsing"),
+                        (ProcessTable::Response, "PRO 1: Response"),
+                        (ProcessTable::AutoAction, "PRO 2: Auto-Action"),
+                        (ProcessTable::Description, "PRO 3: Description"),
+                    ].iter().enumerate() {
+                        let is_selected = rule.process == *table;
+                        row.spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    padding: UiRect::axes(Val::Px(10.0), Val::Px(6.0)),
+                                    border: UiRect::all(Val::Px(1.0)),
+                                    ..default()
+                                },
+                                background_color: if is_selected {
+                                    Color::rgb(0.4, 0.6, 0.9)
+                                } else {
+                                    Color::rgb(0.3, 0.3, 0.35)
+                                }.into(),
+                                border_color: if is_selected {
+                                    Color::rgb(0.6, 0.8, 1.0)
+                                } else {
+                                    Color::rgb(0.4, 0.4, 0.45)
+                                }.into(),
+                                ..default()
+                            },
+                            ProcessTableButton {
+                                rule_index: selected_rule_idx,
+                                process_table: *table,
+                            },
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn(TextBundle::from_section(
+                                *name,
+                                TextStyle {
+                                    font_size: 10.0,
+                                    color: Color::WHITE,
+                                    ..default()
+                                },
+                            ));
+                        });
+                    }
+                });
 
                 // Conditions section
                 parent.spawn(TextBundle::from_section(
@@ -810,4 +928,83 @@ pub(crate) struct EditActionButton {
 pub(crate) struct DeleteActionButton {
     rule_index: usize,
     action_index: usize,
+}
+
+/// Handle edit rule name button (opens text input modal)
+pub fn handle_edit_rule_name_button(
+    state: Res<BuilderState>,
+    mut text_modal: ResMut<crate::builder::ui::components::TextInputModalState>,
+    mut interaction_query: Query<
+        (&Interaction, &EditRuleNameButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(rule) = state.current_game.rules.get(button.rule_index) {
+                text_modal.open_single_line(
+                    "Edit Rule Name",
+                    &rule.name,
+                    "Enter rule name...",
+                    &format!("rule_{}", button.rule_index),
+                );
+            }
+        }
+    }
+}
+
+/// Handle toggle rule enabled button
+pub fn handle_toggle_rule_enabled_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &ToggleRuleEnabledButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(rule) = state.current_game.rules.get_mut(button.rule_index) {
+                rule.enabled = !rule.enabled;
+                let new_state = rule.enabled;
+                state.unsaved_changes = true;
+                info!("Toggled rule {} enabled: {}", button.rule_index, new_state);
+            }
+        }
+    }
+}
+
+/// Handle process table button (changes rule's process table)
+pub fn handle_process_table_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &ProcessTableButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(rule) = state.current_game.rules.get_mut(button.rule_index) {
+                rule.process = button.process_table;
+                state.unsaved_changes = true;
+                info!("Changed rule {} process table to {:?}", button.rule_index, button.process_table);
+            }
+        }
+    }
+}
+
+// New component markers
+#[derive(Component)]
+pub(crate) struct EditRuleNameButton {
+    rule_index: usize,
+}
+
+#[derive(Component)]
+pub(crate) struct ToggleRuleEnabledButton {
+    rule_index: usize,
+}
+
+#[derive(Component)]
+pub(crate) struct ProcessTableButton {
+    rule_index: usize,
+    process_table: ProcessTable,
 }

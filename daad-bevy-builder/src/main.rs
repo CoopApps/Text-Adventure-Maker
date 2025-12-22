@@ -60,6 +60,9 @@ fn main() {
             builder::editors::rule_editor::handle_delete_condition_button,
             builder::editors::rule_editor::handle_edit_action_button,
             builder::editors::rule_editor::handle_delete_action_button,
+            builder::editors::rule_editor::handle_edit_rule_name_button,
+            builder::editors::rule_editor::handle_toggle_rule_enabled_button,
+            builder::editors::rule_editor::handle_process_table_button,
         ))
         .add_systems(Update, (
             // Condition/Action modal systems
