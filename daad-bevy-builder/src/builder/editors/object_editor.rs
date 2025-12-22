@@ -378,7 +378,7 @@ pub fn render_object_property_panel(
         .with_children(|parent| {
             // Header
             parent.spawn(TextBundle::from_section(
-                format!("{} Object Properties", object.icon),
+                format!("{} Object #{} Properties", object.icon, object.id),
                 TextStyle {
                     font_size: 18.0,
                     color: Color::rgb(0.8, 0.9, 1.0),
@@ -386,16 +386,19 @@ pub fn render_object_property_panel(
                 },
             ));
 
-            // Name
-            add_property_row(parent, "Name:", &object.name, "object_name");
+            // Section: Basic Information
+            add_section_header(parent, "Basic Information");
 
-            // Adjective
-            add_property_row(parent, "Adjective:", &object.adjective, "object_adj");
+            // Name (editable)
+            add_editable_property_row(parent, "Name", &object.name, EditObjectNameButton { object_id: object.id });
 
-            // Noun
-            add_property_row(parent, "Noun:", &object.noun, "object_noun");
+            // Adjective (editable)
+            add_editable_property_row(parent, "Adjective", &object.adjective, EditObjectAdjectiveButton { object_id: object.id });
 
-            // Description
+            // Noun (editable)
+            add_editable_property_row(parent, "Noun", &object.noun, EditObjectNounButton { object_id: object.id });
+
+            // Section: Description
             parent.spawn(TextBundle::from_section(
                 "Description:",
                 TextStyle {
@@ -429,43 +432,61 @@ pub fn render_object_property_panel(
                     ));
                 });
 
+            // Section: Physical Properties
+            add_section_header(parent, "Physical Properties");
+
             // Weight
             parent.spawn(NodeBundle {
                 style: Style {
                     flex_direction: FlexDirection::Row,
                     align_items: AlignItems::Center,
                     column_gap: Val::Px(10.0),
+                    padding: UiRect::all(Val::Px(8.0)),
+                    border: UiRect::all(Val::Px(1.0)),
                     ..default()
                 },
+                background_color: Color::rgba(0.2, 0.3, 0.4, 0.3).into(),
+                border_color: Color::rgb(0.3, 0.4, 0.5).into(),
                 ..default()
             })
             .with_children(|row| {
                 row.spawn(TextBundle::from_section(
                     format!("⚖️ Weight: {}", object.weight),
                     TextStyle {
-                        font_size: 12.0,
+                        font_size: 13.0,
                         color: Color::WHITE,
                         ..default()
                     },
                 ));
 
+                // Spacer
+                row.spawn(NodeBundle {
+                    style: Style {
+                        flex_grow: 1.0,
+                        ..default()
+                    },
+                    ..default()
+                });
+
                 // Decrease button
                 row.spawn((
                     ButtonBundle {
                         style: Style {
-                            padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                            padding: UiRect::axes(Val::Px(10.0), Val::Px(6.0)),
+                            border: UiRect::all(Val::Px(1.0)),
                             ..default()
                         },
-                        background_color: Color::rgb(0.4, 0.4, 0.4).into(),
+                        background_color: Color::rgb(0.5, 0.3, 0.3).into(),
+                        border_color: Color::rgb(0.6, 0.4, 0.4).into(),
                         ..default()
                     },
                     DecreaseWeightButton { object_id: object.id },
                 ))
                 .with_children(|btn| {
                     btn.spawn(TextBundle::from_section(
-                        "-",
+                        "➖",
                         TextStyle {
-                            font_size: 14.0,
+                            font_size: 12.0,
                             color: Color::WHITE,
                             ..default()
                         },
@@ -476,19 +497,21 @@ pub fn render_object_property_panel(
                 row.spawn((
                     ButtonBundle {
                         style: Style {
-                            padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                            padding: UiRect::axes(Val::Px(10.0), Val::Px(6.0)),
+                            border: UiRect::all(Val::Px(1.0)),
                             ..default()
                         },
-                        background_color: Color::rgb(0.4, 0.4, 0.4).into(),
+                        background_color: Color::rgb(0.3, 0.5, 0.3).into(),
+                        border_color: Color::rgb(0.4, 0.6, 0.4).into(),
                         ..default()
                     },
                     IncreaseWeightButton { object_id: object.id },
                 ))
                 .with_children(|btn| {
                     btn.spawn(TextBundle::from_section(
-                        "+",
+                        "➕",
                         TextStyle {
-                            font_size: 14.0,
+                            font_size: 12.0,
                             color: Color::WHITE,
                             ..default()
                         },
@@ -496,20 +519,18 @@ pub fn render_object_property_panel(
                 });
             });
 
+            // Section: Object Attributes
+            add_section_header(parent, "Object Attributes");
+
             // Boolean properties
             add_toggle_row(parent, "📦 Container", object.is_container, ToggleContainerButton { object_id: object.id });
             add_toggle_row(parent, "👕 Wearable", object.is_wearable, ToggleWearableButton { object_id: object.id });
             add_toggle_row(parent, "✋ Takeable", object.is_takeable, ToggleTakeableButton { object_id: object.id });
 
+            // Section: Location
+            add_section_header(parent, "Location");
+
             // Location (with button to change)
-            parent.spawn(TextBundle::from_section(
-                "Location:",
-                TextStyle {
-                    font_size: 12.0,
-                    color: Color::rgb(0.7, 0.7, 0.7),
-                    ..default()
-                },
-            ));
 
             let location_text = match &object.location {
                 ObjectLocation::Location(loc_id) => {
@@ -625,6 +646,87 @@ fn add_toggle_row<T: Component>(parent: &mut ChildBuilder, label: &str, is_enabl
         });
 }
 
+/// Helper to add a section header with visual separator
+fn add_section_header(parent: &mut ChildBuilder, title: &str) {
+    // Add some spacing before section
+    parent.spawn(NodeBundle {
+        style: Style {
+            height: Val::Px(8.0),
+            ..default()
+        },
+        ..default()
+    });
+
+    // Section header with border
+    parent.spawn(NodeBundle {
+        style: Style {
+            padding: UiRect::all(Val::Px(6.0)),
+            border: UiRect::bottom(Val::Px(2.0)),
+            margin: UiRect::bottom(Val::Px(8.0)),
+            ..default()
+        },
+        border_color: Color::rgb(0.4, 0.5, 0.6).into(),
+        ..default()
+    })
+    .with_children(|section| {
+        section.spawn(TextBundle::from_section(
+            title,
+            TextStyle {
+                font_size: 13.0,
+                color: Color::rgb(0.6, 0.8, 1.0),
+                ..default()
+            },
+        ));
+    });
+}
+
+/// Helper to add an editable property row with button
+fn add_editable_property_row<T: Component>(parent: &mut ChildBuilder, label: &str, value: &str, component: T) {
+    parent.spawn(TextBundle::from_section(
+        format!("{}:", label),
+        TextStyle {
+            font_size: 11.0,
+            color: Color::rgb(0.6, 0.6, 0.6),
+            ..default()
+        },
+    ));
+
+    parent
+        .spawn((
+            ButtonBundle {
+                style: Style {
+                    padding: UiRect::all(Val::Px(10.0)),
+                    border: UiRect::all(Val::Px(1.0)),
+                    width: Val::Percent(100.0),
+                    justify_content: JustifyContent::FlexStart,
+                    ..default()
+                },
+                background_color: Color::rgb(0.2, 0.25, 0.3).into(),
+                border_color: Color::rgb(0.3, 0.4, 0.5).into(),
+                ..default()
+            },
+            component,
+        ))
+        .with_children(|btn| {
+            btn.spawn(TextBundle::from_section(
+                if value.is_empty() {
+                    format!("(no {})", label.to_lowercase())
+                } else {
+                    value.to_string()
+                },
+                TextStyle {
+                    font_size: 13.0,
+                    color: if value.is_empty() {
+                        Color::rgb(0.5, 0.5, 0.5)
+                    } else {
+                        Color::rgb(0.9, 0.9, 1.0)
+                    },
+                    ..default()
+                },
+            ));
+        });
+}
+
 // Components
 #[derive(Component)]
 pub(crate) struct ObjectSidebar;
@@ -651,6 +753,21 @@ pub(crate) struct DeleteObjectButton {
 }
 
 // Property panel button components
+#[derive(Component)]
+pub struct EditObjectNameButton {
+    object_id: u8,
+}
+
+#[derive(Component)]
+pub struct EditObjectAdjectiveButton {
+    object_id: u8,
+}
+
+#[derive(Component)]
+pub struct EditObjectNounButton {
+    object_id: u8,
+}
+
 #[derive(Component)]
 pub struct EditObjectDescriptionButton {
     object_id: u8,
@@ -686,7 +803,75 @@ pub struct ChangeLocationButton {
     object_id: u8,
 }
 
-/// Handle edit description button
+/// Handle edit name button
+pub fn handle_edit_name_button(
+    state: Res<BuilderState>,
+    mut text_modal: ResMut<crate::builder::ui::components::TextInputModalState>,
+    mut interaction_query: Query<
+        (&Interaction, &EditObjectNameButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(object) = state.current_game.objects.iter().find(|o| o.id == button.object_id) {
+                text_modal.open_single_line(
+                    "Edit Object Name",
+                    &object.name,
+                    "Enter object name...",
+                    &format!("object_name_{}", button.object_id),
+                );
+            }
+        }
+    }
+}
+
+/// Handle edit adjective button
+pub fn handle_edit_adjective_button(
+    state: Res<BuilderState>,
+    mut text_modal: ResMut<crate::builder::ui::components::TextInputModalState>,
+    mut interaction_query: Query<
+        (&Interaction, &EditObjectAdjectiveButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(object) = state.current_game.objects.iter().find(|o| o.id == button.object_id) {
+                text_modal.open_single_line(
+                    "Edit Object Adjective",
+                    &object.adjective,
+                    "Enter adjective (optional)...",
+                    &format!("object_adj_{}", button.object_id),
+                );
+            }
+        }
+    }
+}
+
+/// Handle edit noun button
+pub fn handle_edit_noun_button(
+    state: Res<BuilderState>,
+    mut text_modal: ResMut<crate::builder::ui::components::TextInputModalState>,
+    mut interaction_query: Query<
+        (&Interaction, &EditObjectNounButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(object) = state.current_game.objects.iter().find(|o| o.id == button.object_id) {
+                text_modal.open_single_line(
+                    "Edit Object Noun",
+                    &object.noun,
+                    "Enter object noun...",
+                    &format!("object_noun_{}", button.object_id),
+                );
+            }
+        }
+    }
+}
+
 pub fn handle_edit_description_button(
     state: Res<BuilderState>,
     mut text_modal: ResMut<crate::builder::ui::components::TextInputModalState>,
@@ -798,6 +983,48 @@ pub fn handle_toggle_takeable_button(
             if let Some(object) = state.current_game.objects.iter_mut().find(|o| o.id == button.object_id) {
                 object.is_takeable = !object.is_takeable;
                 state.unsaved_changes = true;
+            }
+        }
+    }
+}
+
+/// Update object properties from text input modal results
+pub fn update_object_from_text_input(
+    mut state: ResMut<BuilderState>,
+    text_input_state: Res<crate::builder::ui::components::TextInputModalState>,
+) {
+    if text_input_state.is_changed() && !text_input_state.is_open {
+        if let Some(callback_id) = &text_input_state.callback_id {
+            // Parse the callback ID to get object ID and property name
+            // Format: "object_<property>_<id>"
+            if callback_id.starts_with("object_") {
+                let parts: Vec<&str> = callback_id.split('_').collect();
+                if parts.len() >= 3 {
+                    let property = parts[1];
+                    let object_id: u8 = parts[2].parse().unwrap_or(0);
+
+                    if let Some(object) = state.current_game.objects.iter_mut().find(|o| o.id == object_id) {
+                        match property {
+                            "name" => {
+                                object.name = text_input_state.current_value.clone();
+                                state.unsaved_changes = true;
+                            }
+                            "adj" => {
+                                object.adjective = text_input_state.current_value.clone();
+                                state.unsaved_changes = true;
+                            }
+                            "noun" => {
+                                object.noun = text_input_state.current_value.clone();
+                                state.unsaved_changes = true;
+                            }
+                            "desc" => {
+                                object.description = text_input_state.current_value.clone();
+                                state.unsaved_changes = true;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
             }
         }
     }

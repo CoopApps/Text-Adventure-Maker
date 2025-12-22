@@ -73,12 +73,16 @@ fn main() {
         ))
         .add_systems(Update, (
             // Object property panel systems
+            builder::editors::object_editor::handle_edit_name_button,
+            builder::editors::object_editor::handle_edit_adjective_button,
+            builder::editors::object_editor::handle_edit_noun_button,
             builder::editors::object_editor::handle_edit_description_button,
             builder::editors::object_editor::handle_decrease_weight_button,
             builder::editors::object_editor::handle_increase_weight_button,
             builder::editors::object_editor::handle_toggle_container_button,
             builder::editors::object_editor::handle_toggle_wearable_button,
             builder::editors::object_editor::handle_toggle_takeable_button,
+            builder::editors::object_editor::update_object_from_text_input,
         ))
         .add_systems(Update, (
             // Rule editor systems
