@@ -74,6 +74,11 @@ fn main() {
             builder::ui::export_ui::handle_build_test_button,
             builder::ui::export_ui::handle_play_in_browser_button,
         ))
+        .add_systems(Update, (
+            // Vocabulary systems
+            builder::ui::vocabulary_ui::handle_add_word_button,
+            builder::ui::vocabulary_ui::handle_remove_word_button,
+        ))
         .run();
 }
 
