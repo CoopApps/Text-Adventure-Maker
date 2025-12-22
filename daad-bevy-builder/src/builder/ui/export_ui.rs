@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use crate::builder::state::{BuilderState, Panel};
 use crate::daad::codegen::DaadCodeGenerator;
+use crate::launcher::{DaadLauncher, DrcTarget};
+use std::path::PathBuf;
 use std::fs;
 
 /// Render export panel
@@ -246,6 +248,115 @@ pub fn render_export_panel(
                     ));
                 });
 
+            // Separator
+            parent.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(2.0),
+                    margin: UiRect::vertical(Val::Px(15.0)),
+                    ..default()
+                },
+                background_color: Color::rgb(0.3, 0.3, 0.35).into(),
+                ..default()
+            });
+
+            // Build & Test Section
+            parent.spawn(TextBundle::from_section(
+                "🚀 Build & Test with DRC",
+                TextStyle {
+                    font_size: 18.0,
+                    color: Color::rgb(0.9, 0.9, 1.0),
+                    ..default()
+                },
+            ));
+
+            parent.spawn(TextBundle::from_section(
+                "Compile your game with the DRC compiler and verify it works",
+                TextStyle {
+                    font_size: 12.0,
+                    color: Color::rgb(0.6, 0.6, 0.6),
+                    ..default()
+                },
+            ));
+
+            // Build & Test button
+            parent
+                .spawn((
+                    ButtonBundle {
+                        style: Style {
+                            padding: UiRect::all(Val::Px(12.0)),
+                            margin: UiRect::vertical(Val::Px(8.0)),
+                            border: UiRect::all(Val::Px(2.0)),
+                            ..default()
+                        },
+                        background_color: Color::rgb(0.7, 0.3, 0.7).into(),
+                        border_color: Color::rgb(0.9, 0.4, 0.9).into(),
+                        ..default()
+                    },
+                    BuildTestButton,
+                ))
+                .with_children(|parent| {
+                    parent.spawn(TextBundle::from_section(
+                        "🚀 BUILD & TEST",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    ));
+                });
+
+            // Compilation output display
+            if let Some(output) = &state.compilation_output {
+                let bg_color = if state.compilation_success {
+                    Color::rgba(0.2, 0.4, 0.2, 0.8)  // Green for success
+                } else {
+                    Color::rgba(0.4, 0.2, 0.2, 0.8)  // Red for errors
+                };
+
+                let title = if state.compilation_success {
+                    "✅ Compilation Successful"
+                } else {
+                    "❌ Compilation Failed"
+                };
+
+                parent
+                    .spawn(NodeBundle {
+                        style: Style {
+                            flex_direction: FlexDirection::Column,
+                            padding: UiRect::all(Val::Px(10.0)),
+                            margin: UiRect::vertical(Val::Px(8.0)),
+                            border: UiRect::all(Val::Px(2.0)),
+                            max_height: Val::Px(200.0),
+                            ..default()
+                        },
+                        background_color: bg_color.into(),
+                        border_color: Color::rgb(0.5, 0.5, 0.5).into(),
+                        ..default()
+                    })
+                    .with_children(|parent| {
+                        // Title
+                        parent.spawn(TextBundle::from_section(
+                            title,
+                            TextStyle {
+                                font_size: 13.0,
+                                color: Color::WHITE,
+                                ..default()
+                            },
+                        ));
+
+                        // Output text
+                        parent.spawn(TextBundle::from_section(
+                            output,
+                            TextStyle {
+                                font_size: 11.0,
+                                color: Color::rgb(0.9, 0.9, 0.9),
+                                ..default()
+                            },
+                        ));
+                    });
+            }
+
             // Help text
             parent.spawn(TextBundle::from_section(
                 "ℹ️ Files will be saved to: ./exports/",
@@ -359,6 +470,77 @@ pub fn handle_preview_daad_button(
     }
 }
 
+/// Handle Build & Test button - compile with DRC
+pub fn handle_build_test_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<BuildTestButton>),
+    >,
+) {
+    for interaction in interaction_query.iter_mut() {
+        if *interaction == Interaction::Pressed {
+            info!("🚀 Build & Test button pressed - starting DRC compilation");
+
+            // Create exports directory
+            let _ = fs::create_dir_all("./exports");
+
+            // Generate filename from game title
+            let filename = state.current_game.title.replace(' ', "_").to_lowercase();
+            let sce_path = format!("./exports/{}.sce", filename);
+
+            // Generate DAAD source code
+            let daad_code = DaadCodeGenerator::generate(&state.current_game);
+
+            // Write .sce file
+            match fs::write(&sce_path, &daad_code) {
+                Ok(_) => {
+                    info!("✅ Generated .sce file: {}", sce_path);
+
+                    // Try to compile with DRC
+                    match DaadLauncher::auto_detect() {
+                        Ok(launcher) => {
+                            info!("✅ Found DRC compiler");
+
+                            // Compile the .sce file
+                            match launcher.compile_sce_with_output(
+                                &PathBuf::from(&sce_path),
+                                DrcTarget::ZXSpectrum,
+                                None,
+                                None,
+                            ) {
+                                Ok((json_path, output)) => {
+                                    info!("✅ Compilation successful: {}", json_path.display());
+                                    state.compilation_output = Some(output.combined_output());
+                                    state.compilation_success = true;
+                                }
+                                Err(e) => {
+                                    error!("❌ Compilation failed: {}", e);
+                                    state.compilation_output = Some(format!("❌ Compilation Error:\n\n{}", e));
+                                    state.compilation_success = false;
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("❌ DRC not found: {}", e);
+                            state.compilation_output = Some(format!(
+                                "❌ DRC Compiler Not Found\n\n{}\n\nPlease ensure DRC is compiled at:\n../external/DRC/src/drc",
+                                e
+                            ));
+                            state.compilation_success = false;
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("❌ Failed to write .sce file: {}", e);
+                    state.compilation_output = Some(format!("❌ File Write Error:\n\n{}", e));
+                    state.compilation_success = false;
+                }
+            }
+        }
+    }
+}
+
 // Components
 #[derive(Component)]
 pub(crate) struct ExportPanel;
@@ -371,3 +553,6 @@ pub(crate) struct ExportDaadButton;
 
 #[derive(Component)]
 pub(crate) struct PreviewDaadButton;
+
+#[derive(Component)]
+pub(crate) struct BuildTestButton;

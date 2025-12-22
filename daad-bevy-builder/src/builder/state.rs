@@ -11,6 +11,8 @@ pub struct BuilderState {
     pub show_preview: bool,
     pub unsaved_changes: bool,
     pub current_file_path: Option<String>,
+    pub compilation_output: Option<String>,
+    pub compilation_success: bool,
 }
 
 impl Default for BuilderState {
@@ -23,6 +25,8 @@ impl Default for BuilderState {
             show_preview: false,
             unsaved_changes: false,
             current_file_path: None,
+            compilation_output: None,
+            compilation_success: false,
         }
     }
 }
