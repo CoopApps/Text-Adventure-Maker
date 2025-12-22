@@ -84,6 +84,10 @@ fn main() {
             builder::editors::property_forms::handle_message_card_clicks,
             builder::editors::property_forms::handle_add_flag_button,
             builder::editors::property_forms::handle_add_message_button,
+            builder::editors::property_forms::handle_edit_flag_button,
+            builder::editors::property_forms::handle_delete_flag_button,
+            builder::editors::property_forms::handle_edit_message_button,
+            builder::editors::property_forms::handle_delete_message_button,
         ))
         .add_systems(Update, (
             // Preview/playtest systems
