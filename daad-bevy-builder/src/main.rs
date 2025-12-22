@@ -91,6 +91,13 @@ fn main() {
             builder::ui::sound_ui::handle_remove_sound_button,
             builder::ui::sound_ui::handle_edit_sound_button,
         ))
+        .add_systems(Update, (
+            // Graphics systems
+            builder::ui::graphics_ui::handle_add_picture_button,
+            builder::ui::graphics_ui::handle_remove_picture_button,
+            builder::ui::graphics_ui::handle_edit_picture_button,
+            builder::ui::graphics_ui::handle_set_location_binding_button,
+        ))
         .run();
 }
 

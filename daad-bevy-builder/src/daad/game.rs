@@ -78,6 +78,7 @@ pub struct DaadGame {
     pub messages: Vec<String>,
     pub vocabulary: Vec<VocabEntry>,
     pub sounds: Vec<Sound>,
+    pub pictures: Vec<Picture>,
 
     // Multi-language support
     pub supported_languages: Vec<Language>,
@@ -208,6 +209,37 @@ impl SoundType {
     }
 }
 
+/// Picture/graphic resource
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Picture {
+    pub id: u8,
+    pub name: String,
+    pub description: String,
+    /// File path for web/HTML export (PNG, JPG, GIF)
+    pub web_file: Option<String>,
+    /// Platform-specific picture files (SCR for ZX Spectrum, PIC for Amstrad, etc.)
+    pub platform_files: std::collections::HashMap<String, String>,
+    /// Location ID where this picture should be displayed (0 = show at location 0)
+    /// None = not bound to any location (manual display via Picture action)
+    pub location_binding: Option<u8>,
+    /// Image dimensions (width, height) for web export
+    pub dimensions: Option<(u32, u32)>,
+}
+
+impl Picture {
+    pub fn new(id: u8, name: String) -> Self {
+        Self {
+            id,
+            name,
+            description: String::new(),
+            web_file: None,
+            platform_files: std::collections::HashMap::new(),
+            location_binding: None,
+            dimensions: None,
+        }
+    }
+}
+
 impl Default for DaadGame {
     fn default() -> Self {
         Self {
@@ -287,6 +319,7 @@ impl Default for DaadGame {
                 },
             ],
             sounds: vec![],
+            pictures: vec![],
             supported_languages: vec![Language::English],
             default_language: Language::English,
             maluva_enabled: false,

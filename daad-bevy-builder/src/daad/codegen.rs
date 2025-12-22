@@ -230,6 +230,25 @@ impl DaadCodeGenerator {
             header.push_str("\n");
         }
 
+        // Add picture library reference
+        if !game.pictures.is_empty() {
+            header.push_str("; Picture Library\n");
+            header.push_str("; Use Picture <id> action to display graphics\n");
+            for picture in &game.pictures {
+                let location_info = match picture.location_binding {
+                    Some(loc_id) => format!(" (bound to location {})", loc_id),
+                    None => String::new(),
+                };
+                header.push_str(&format!(
+                    "; Picture {}: {}{}\n",
+                    picture.id,
+                    picture.name,
+                    location_info
+                ));
+            }
+            header.push_str("\n");
+        }
+
         header.push_str("\n");
         header
     }

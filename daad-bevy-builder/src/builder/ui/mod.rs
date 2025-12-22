@@ -8,9 +8,11 @@ pub mod vocabulary_ui;
 pub mod game_info_ui;
 pub mod analytics_ui;
 pub mod sound_ui;
+pub mod graphics_ui;
 
 pub use export_ui::*;
 pub use vocabulary_ui::*;
 pub use game_info_ui::*;
 pub use analytics_ui::*;
 pub use sound_ui::*;
+pub use graphics_ui::*;
