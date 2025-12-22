@@ -72,6 +72,7 @@ fn main() {
             builder::ui::export_ui::handle_preview_daad_button,
             builder::ui::export_ui::handle_platform_button,
             builder::ui::export_ui::handle_build_test_button,
+            builder::ui::export_ui::handle_play_in_browser_button,
         ))
         .run();
 }

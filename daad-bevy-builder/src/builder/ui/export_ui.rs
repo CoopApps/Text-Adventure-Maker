@@ -472,6 +472,33 @@ pub fn render_export_panel(
                     ));
                 });
 
+            // Play in Browser button
+            parent
+                .spawn((
+                    ButtonBundle {
+                        style: Style {
+                            padding: UiRect::all(Val::Px(12.0)),
+                            margin: UiRect::vertical(Val::Px(8.0)),
+                            border: UiRect::all(Val::Px(2.0)),
+                            ..default()
+                        },
+                        background_color: Color::rgb(0.2, 0.5, 0.7).into(),
+                        border_color: Color::rgb(0.3, 0.7, 0.9).into(),
+                        ..default()
+                    },
+                    PlayInBrowserButton,
+                ))
+                .with_children(|parent| {
+                    parent.spawn(TextBundle::from_section(
+                        "🌐 PLAY IN BROWSER",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    ));
+                });
+
             // Compilation output display
             if let Some(output) = &state.compilation_output {
                 let bg_color = if state.compilation_success {
@@ -731,6 +758,126 @@ pub fn handle_build_test_button(
     }
 }
 
+/// Handle Play in Browser button - compile to HTML and open in browser
+pub fn handle_play_in_browser_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<PlayInBrowserButton>),
+    >,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            info!("🌐 Play in Browser button pressed - compiling to HTML");
+
+            // Create exports directory
+            let _ = fs::create_dir_all("./exports");
+
+            // Generate filename from game title
+            let filename = state.current_game.title.replace(' ', "_").to_lowercase();
+            let sce_path = format!("./exports/{}.sce", filename);
+            let html_path = format!("./exports/{}.html", filename);
+
+            // Generate DAAD source code
+            let daad_code = DaadCodeGenerator::generate(&state.current_game);
+
+            // Write .sce file
+            match fs::write(&sce_path, &daad_code) {
+                Ok(_) => {
+                    info!("✅ Generated .sce file: {}", sce_path);
+
+                    // Compile to HTML
+                    match DaadLauncher::auto_detect() {
+                        Ok(launcher) => {
+                            info!("✅ Found DRC compiler");
+
+                            match launcher.compile_sce_with_output(
+                                &PathBuf::from(&sce_path),
+                                DrcTarget::HTML,
+                                None,
+                                Some(PathBuf::from(&html_path)),
+                            ) {
+                                Ok((html_file, output)) => {
+                                    info!("✅ HTML compilation successful: {}", html_file.display());
+
+                                    // Open in default browser
+                                    match open_in_browser(&html_file) {
+                                        Ok(_) => {
+                                            state.compilation_output = Some(format!(
+                                                "✅ Game compiled to HTML!\n\n{}\n\n🌐 Opening in browser...",
+                                                output.combined_output()
+                                            ));
+                                            state.compilation_success = true;
+                                        }
+                                        Err(e) => {
+                                            state.compilation_output = Some(format!(
+                                                "✅ Game compiled successfully!\n\n{}\n\n⚠️  Could not auto-open browser: {}\n\nManually open: {}",
+                                                output.combined_output(),
+                                                e,
+                                                html_file.display()
+                                            ));
+                                            state.compilation_success = true;
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    error!("❌ HTML compilation failed: {}", e);
+                                    state.compilation_output = Some(format!("❌ HTML Compilation Error:\n\n{}", e));
+                                    state.compilation_success = false;
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("❌ DRC not found: {}", e);
+                            state.compilation_output = Some(format!(
+                                "❌ DRC Compiler Not Found\n\n{}\n\nPlease ensure DRC is compiled at:\n../external/DRC/src/drc",
+                                e
+                            ));
+                            state.compilation_success = false;
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("❌ Failed to write .sce file: {}", e);
+                    state.compilation_output = Some(format!("❌ File Write Error:\n\n{}", e));
+                    state.compilation_success = false;
+                }
+            }
+        }
+    }
+}
+
+/// Open a file in the default browser (cross-platform)
+fn open_in_browser(path: &PathBuf) -> Result<(), String> {
+    let path_str = path.to_string_lossy();
+
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&*path_str)
+            .spawn()
+            .map_err(|e| format!("Failed to launch xdg-open: {}", e))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&*path_str)
+            .spawn()
+            .map_err(|e| format!("Failed to launch open: {}", e))?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", &path_str])
+            .spawn()
+            .map_err(|e| format!("Failed to launch browser: {}", e))?;
+    }
+
+    Ok(())
+}
+
 // Components
 #[derive(Component)]
 pub(crate) struct ExportPanel;
@@ -751,3 +898,6 @@ pub(crate) struct BuildTestButton;
 pub(crate) struct PlatformButton {
     pub target: DrcTarget,
 }
+
+#[derive(Component)]
+pub(crate) struct PlayInBrowserButton;
