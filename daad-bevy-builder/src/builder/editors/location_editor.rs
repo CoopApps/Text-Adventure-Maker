@@ -495,6 +495,37 @@ fn render_property_panel(parent: &mut ChildBuilder, location: &Location, _state:
                         ..default()
                     });
 
+                    // Edit button
+                    row.spawn((
+                        ButtonBundle {
+                            style: Style {
+                                padding: UiRect::axes(Val::Px(6.0), Val::Px(4.0)),
+                                border: UiRect::all(Val::Px(1.0)),
+                                margin: UiRect::right(Val::Px(4.0)),
+                                ..default()
+                            },
+                            background_color: Color::rgb(0.4, 0.5, 0.6).into(),
+                            border_color: Color::rgb(0.5, 0.6, 0.7).into(),
+                            ..default()
+                        },
+                        EditConnectionButton {
+                            location_id: location.id,
+                            connection_index: idx,
+                            direction: conn.direction,
+                            target: conn.target_location,
+                        },
+                    ))
+                    .with_children(|btn| {
+                        btn.spawn(TextBundle::from_section(
+                            "✏️",
+                            TextStyle {
+                                font_size: 10.0,
+                                color: Color::WHITE,
+                                ..default()
+                            },
+                        ));
+                    });
+
                     // Delete button
                     row.spawn((
                         ButtonBundle {
@@ -892,6 +923,14 @@ pub(crate) struct AddConnectionButton {
 }
 
 #[derive(Component)]
+pub(crate) struct EditConnectionButton {
+    location_id: u8,
+    connection_index: usize,
+    direction: Direction,
+    target: u8,
+}
+
+#[derive(Component)]
 pub(crate) struct DeleteConnectionButton {
     location_id: u8,
     connection_index: usize,
@@ -1007,9 +1046,10 @@ pub fn process_location_name_edit(
 }
 
 /// Handle add connection button - adds a North connection to first location as placeholder
-/// TODO: Show modal to select direction and target location
+/// Handle add connection button - opens connection editor modal
 pub fn handle_add_connection_button(
-    mut state: ResMut<BuilderState>,
+    state: Res<BuilderState>,
+    mut modal_state: ResMut<crate::builder::ui::components::ConnectionEditorModalState>,
     mut interaction_query: Query<
         (&Interaction, &AddConnectionButton),
         (Changed<Interaction>, With<Button>),
@@ -1017,24 +1057,37 @@ pub fn handle_add_connection_button(
 ) {
     for (interaction, button) in interaction_query.iter() {
         if *interaction == Interaction::Pressed {
-            // Find first valid target location (not self) before mutating
-            let target = state.current_game.locations.iter()
+            // Find first valid target location (not self) as default
+            let default_target = state.current_game.locations.iter()
                 .find(|l| l.id != button.location_id)
                 .map(|l| l.id)
                 .unwrap_or(0);
 
-            // Now get mutable reference and add connection
-            if let Some(location) = state.current_game.locations.iter_mut().find(|l| l.id == button.location_id) {
-                // Add placeholder connection (North direction by default)
-                location.connections.push(Connection {
-                    direction: Direction::North,
-                    target_location: target,
-                    condition: None,
-                });
+            // Open connection editor modal for new connection
+            modal_state.open_new(button.location_id, default_target);
+            info!("Opening connection editor for location {}", button.location_id);
+        }
+    }
+}
 
-                state.mark_dirty();
-                info!("Added connection from location {} to {}", button.location_id, target);
-            }
+/// Handle edit connection button - opens connection editor modal with existing data
+pub fn handle_edit_connection_button(
+    mut modal_state: ResMut<crate::builder::ui::components::ConnectionEditorModalState>,
+    mut interaction_query: Query<
+        (&Interaction, &EditConnectionButton),
+        (Changed<Interaction>, With<Button>),
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            // Open connection editor modal for editing existing connection
+            modal_state.open_edit(
+                button.location_id,
+                button.connection_index,
+                button.direction,
+                button.target
+            );
+            info!("Opening connection editor for editing connection at index {}", button.connection_index);
         }
     }
 }

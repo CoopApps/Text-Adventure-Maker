@@ -23,6 +23,7 @@ fn main() {
         .init_resource::<builder::ui::condition_action_modals::ActionEditorState>()
         .init_resource::<builder::ui::components::TextInputModalState>()
         .init_resource::<builder::ui::components::ConfirmationModalState>()
+        .init_resource::<builder::ui::components::ConnectionEditorModalState>()
         .init_resource::<builder::ui::vocabulary_ui::VocabularySearchState>()
         .init_resource::<builder::debug::DebugState>()
         .add_systems(Startup, setup)
@@ -51,6 +52,7 @@ fn main() {
             builder::editors::location_editor::render_connection_preview,
             builder::editors::location_editor::process_location_name_edit,
             builder::editors::location_editor::handle_add_connection_button,
+            builder::editors::location_editor::handle_edit_connection_button,
             builder::editors::location_editor::handle_delete_connection_button,
             builder::editors::location_editor::process_connection_deletion,
         ))
@@ -95,7 +97,7 @@ fn main() {
             builder::editors::rule_editor::handle_move_action_down_button,
         ))
         .add_systems(Update, (
-            // Modal systems (text input, confirmation, condition/action)
+            // Modal systems (text input, confirmation, connection editor, condition/action)
             builder::ui::components::handle_close_modal_button,
             builder::ui::components::render_text_input_modal,
             builder::ui::components::handle_text_input_modal_keyboard,
@@ -103,6 +105,11 @@ fn main() {
             builder::ui::components::render_confirmation_modal,
             builder::ui::components::handle_confirm_button,
             builder::ui::components::handle_cancel_confirmation_button,
+            builder::ui::components::render_connection_editor_modal,
+            builder::ui::components::handle_direction_button,
+            builder::ui::components::handle_target_location_button,
+            builder::ui::components::handle_save_connection_button,
+            builder::ui::components::handle_cancel_connection_button,
             builder::ui::condition_action_modals::render_condition_editor_modal,
             builder::ui::condition_action_modals::render_action_editor_modal,
             builder::ui::condition_action_modals::handle_condition_type_button,

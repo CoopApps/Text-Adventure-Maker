@@ -926,3 +926,454 @@ pub fn handle_confirm_button(
         }
     }
 }
+
+/// Connection editor modal state resource
+#[derive(Resource)]
+pub struct ConnectionEditorModalState {
+    pub is_open: bool,
+    pub location_id: u8,
+    pub connection_index: Option<usize>, // None for new connection, Some for editing existing
+    pub selected_direction: crate::daad::types::Direction,
+    pub selected_target: u8,
+}
+
+impl Default for ConnectionEditorModalState {
+    fn default() -> Self {
+        Self {
+            is_open: false,
+            location_id: 0,
+            connection_index: None,
+            selected_direction: crate::daad::types::Direction::North,
+            selected_target: 0,
+        }
+    }
+}
+
+impl ConnectionEditorModalState {
+    pub fn open_new(&mut self, location_id: u8, default_target: u8) {
+        self.is_open = true;
+        self.location_id = location_id;
+        self.connection_index = None;
+        self.selected_direction = crate::daad::types::Direction::North;
+        self.selected_target = default_target;
+    }
+
+    pub fn open_edit(&mut self, location_id: u8, connection_index: usize, direction: crate::daad::types::Direction, target: u8) {
+        self.is_open = true;
+        self.location_id = location_id;
+        self.connection_index = Some(connection_index);
+        self.selected_direction = direction;
+        self.selected_target = target;
+    }
+
+    pub fn close(&mut self) {
+        self.is_open = false;
+    }
+}
+
+/// Connection editor modal marker
+#[derive(Component)]
+pub struct ConnectionEditorModal;
+
+/// Direction selection button
+#[derive(Component)]
+pub struct DirectionButton {
+    pub direction: crate::daad::types::Direction,
+}
+
+/// Target location selection button
+#[derive(Component)]
+pub struct TargetLocationButton {
+    pub location_id: u8,
+}
+
+/// Save connection button
+#[derive(Component)]
+pub struct SaveConnectionButton;
+
+/// Cancel connection edit button
+#[derive(Component)]
+pub struct CancelConnectionButton;
+
+/// Render connection editor modal
+pub fn render_connection_editor_modal(
+    mut commands: Commands,
+    modal_state: Res<ConnectionEditorModalState>,
+    state: Res<crate::builder::state::BuilderState>,
+    query: Query<Entity, With<ConnectionEditorModal>>,
+) {
+    if !modal_state.is_open {
+        // Close any existing modals
+        for entity in query.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+        return;
+    }
+
+    // Don't re-render if already exists
+    if !query.is_empty() {
+        return;
+    }
+
+    use crate::daad::types::Direction;
+
+    // Create modal backdrop
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                background_color: Color::rgba(0.0, 0.0, 0.0, 0.7).into(),
+                z_index: ZIndex::Global(100),
+                ..default()
+            },
+            ModalBackdrop,
+            ConnectionEditorModal,
+        ))
+        .with_children(|backdrop| {
+            // Modal container
+            backdrop
+                .spawn(NodeBundle {
+                    style: Style {
+                        flex_direction: FlexDirection::Column,
+                        padding: UiRect::all(Val::Px(25.0)),
+                        row_gap: Val::Px(15.0),
+                        width: Val::Px(500.0),
+                        border: UiRect::all(Val::Px(3.0)),
+                        ..default()
+                    },
+                    background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                    border_color: Color::rgb(0.4, 0.6, 0.8).into(),
+                    ..default()
+                })
+                .with_children(|modal| {
+                    // Title
+                    modal.spawn(TextBundle::from_section(
+                        if modal_state.connection_index.is_some() {
+                            "Edit Connection"
+                        } else {
+                            "Add New Connection"
+                        },
+                        TextStyle {
+                            font_size: 22.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    ));
+
+                    // Direction selection section
+                    modal.spawn(TextBundle::from_section(
+                        "Direction:",
+                        TextStyle {
+                            font_size: 16.0,
+                            color: Color::rgb(0.8, 0.8, 0.8),
+                            ..default()
+                        },
+                    ));
+
+                    // Direction buttons grid
+                    modal
+                        .spawn(NodeBundle {
+                            style: Style {
+                                display: Display::Grid,
+                                grid_template_columns: vec![
+                                    RepeatedGridTrack::auto(4),
+                                ],
+                                column_gap: Val::Px(8.0),
+                                row_gap: Val::Px(8.0),
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|grid| {
+                            for (direction, label, icon) in [
+                                (Direction::North, "North", "⬆️"),
+                                (Direction::South, "South", "⬇️"),
+                                (Direction::East, "East", "➡️"),
+                                (Direction::West, "West", "⬅️"),
+                                (Direction::Northeast, "NE", "↗️"),
+                                (Direction::Northwest, "NW", "↖️"),
+                                (Direction::Southeast, "SE", "↘️"),
+                                (Direction::Southwest, "SW", "↙️"),
+                                (Direction::Up, "Up", "🔼"),
+                                (Direction::Down, "Down", "🔽"),
+                                (Direction::In, "In", "🚪"),
+                                (Direction::Out, "Out", "🚪"),
+                            ] {
+                                let is_selected = modal_state.selected_direction == direction;
+                                grid.spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            padding: UiRect::all(Val::Px(10.0)),
+                                            border: UiRect::all(Val::Px(2.0)),
+                                            justify_content: JustifyContent::Center,
+                                            align_items: AlignItems::Center,
+                                            ..default()
+                                        },
+                                        background_color: if is_selected {
+                                            Color::rgb(0.4, 0.6, 0.8).into()
+                                        } else {
+                                            Color::rgb(0.2, 0.2, 0.25).into()
+                                        },
+                                        border_color: if is_selected {
+                                            Color::rgb(0.6, 0.8, 1.0).into()
+                                        } else {
+                                            Color::rgb(0.3, 0.3, 0.35).into()
+                                        },
+                                        ..default()
+                                    },
+                                    DirectionButton { direction },
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn(TextBundle::from_section(
+                                        format!("{} {}", icon, label),
+                                        TextStyle {
+                                            font_size: 12.0,
+                                            color: Color::WHITE,
+                                            ..default()
+                                        },
+                                    ));
+                                });
+                            }
+                        });
+
+                    // Target location selection section
+                    modal.spawn(TextBundle::from_section(
+                        "Target Location:",
+                        TextStyle {
+                            font_size: 16.0,
+                            color: Color::rgb(0.8, 0.8, 0.8),
+                            ..default()
+                        },
+                    ));
+
+                    // Target location buttons (scrollable if many locations)
+                    modal
+                        .spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Column,
+                                row_gap: Val::Px(6.0),
+                                max_height: Val::Px(200.0),
+                                overflow: Overflow::clip_y(),
+                                padding: UiRect::all(Val::Px(8.0)),
+                                border: UiRect::all(Val::Px(1.0)),
+                                ..default()
+                            },
+                            background_color: Color::rgb(0.1, 0.1, 0.15).into(),
+                            border_color: Color::rgb(0.3, 0.3, 0.35).into(),
+                            ..default()
+                        })
+                        .with_children(|list| {
+                            for location in &state.current_game.locations {
+                                // Skip the source location
+                                if location.id == modal_state.location_id {
+                                    continue;
+                                }
+
+                                let is_selected = modal_state.selected_target == location.id;
+                                list.spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            padding: UiRect::all(Val::Px(10.0)),
+                                            border: UiRect::all(Val::Px(2.0)),
+                                            width: Val::Percent(100.0),
+                                            ..default()
+                                        },
+                                        background_color: if is_selected {
+                                            Color::rgb(0.3, 0.5, 0.4).into()
+                                        } else {
+                                            Color::rgb(0.2, 0.2, 0.25).into()
+                                        },
+                                        border_color: if is_selected {
+                                            Color::rgb(0.5, 0.8, 0.6).into()
+                                        } else {
+                                            Color::rgb(0.3, 0.3, 0.35).into()
+                                        },
+                                        ..default()
+                                    },
+                                    TargetLocationButton { location_id: location.id },
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn(TextBundle::from_section(
+                                        format!("#{} - {}", location.id, location.name),
+                                        TextStyle {
+                                            font_size: 13.0,
+                                            color: Color::WHITE,
+                                            ..default()
+                                        },
+                                    ));
+                                });
+                            }
+                        });
+
+                    // Action buttons
+                    modal
+                        .spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(10.0),
+                                margin: UiRect::top(Val::Px(10.0)),
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|buttons| {
+                            // Save button
+                            buttons
+                                .spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            padding: UiRect::all(Val::Px(12.0)),
+                                            border: UiRect::all(Val::Px(2.0)),
+                                            flex_grow: 1.0,
+                                            justify_content: JustifyContent::Center,
+                                            ..default()
+                                        },
+                                        background_color: Color::rgb(0.3, 0.6, 0.3).into(),
+                                        border_color: Color::rgb(0.4, 0.8, 0.4).into(),
+                                        ..default()
+                                    },
+                                    SaveConnectionButton,
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn(TextBundle::from_section(
+                                        "✓ Save",
+                                        TextStyle {
+                                            font_size: 15.0,
+                                            color: Color::WHITE,
+                                            ..default()
+                                        },
+                                    ));
+                                });
+
+                            // Cancel button
+                            buttons
+                                .spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            padding: UiRect::all(Val::Px(12.0)),
+                                            border: UiRect::all(Val::Px(2.0)),
+                                            flex_grow: 1.0,
+                                            justify_content: JustifyContent::Center,
+                                            ..default()
+                                        },
+                                        background_color: Color::rgb(0.4, 0.3, 0.3).into(),
+                                        border_color: Color::rgb(0.6, 0.4, 0.4).into(),
+                                        ..default()
+                                    },
+                                    CancelConnectionButton,
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn(TextBundle::from_section(
+                                        "✗ Cancel",
+                                        TextStyle {
+                                            font_size: 15.0,
+                                            color: Color::WHITE,
+                                            ..default()
+                                        },
+                                    ));
+                                });
+                        });
+                });
+        });
+}
+
+/// Handle direction button clicks
+pub fn handle_direction_button(
+    mut modal_state: ResMut<ConnectionEditorModalState>,
+    mut interaction_query: Query<
+        (&Interaction, &DirectionButton),
+        (Changed<Interaction>, With<Button>),
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            modal_state.selected_direction = button.direction;
+        }
+    }
+}
+
+/// Handle target location button clicks
+pub fn handle_target_location_button(
+    mut modal_state: ResMut<ConnectionEditorModalState>,
+    mut interaction_query: Query<
+        (&Interaction, &TargetLocationButton),
+        (Changed<Interaction>, With<Button>),
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            modal_state.selected_target = button.location_id;
+        }
+    }
+}
+
+/// Handle save connection button
+pub fn handle_save_connection_button(
+    mut commands: Commands,
+    mut modal_state: ResMut<ConnectionEditorModalState>,
+    mut state: ResMut<crate::builder::state::BuilderState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<SaveConnectionButton>),
+    >,
+    backdrop_query: Query<Entity, With<ModalBackdrop>>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            // Find the location and add/edit connection
+            if let Some(location) = state.current_game.locations.iter_mut().find(|l| l.id == modal_state.location_id) {
+                let new_connection = crate::daad::types::Connection {
+                    direction: modal_state.selected_direction,
+                    target_location: modal_state.selected_target,
+                    condition: None,
+                };
+
+                if let Some(index) = modal_state.connection_index {
+                    // Edit existing connection
+                    if index < location.connections.len() {
+                        location.connections[index] = new_connection;
+                        info!("Updated connection at index {}", index);
+                    }
+                } else {
+                    // Add new connection
+                    location.connections.push(new_connection);
+                    info!("Added new connection");
+                }
+
+                state.mark_dirty();
+            }
+
+            modal_state.close();
+            for entity in backdrop_query.iter() {
+                commands.entity(entity).despawn_recursive();
+            }
+        }
+    }
+}
+
+/// Handle cancel connection button
+pub fn handle_cancel_connection_button(
+    mut commands: Commands,
+    mut modal_state: ResMut<ConnectionEditorModalState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<CancelConnectionButton>),
+    >,
+    backdrop_query: Query<Entity, With<ModalBackdrop>>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            modal_state.close();
+            for entity in backdrop_query.iter() {
+                commands.entity(entity).despawn_recursive();
+            }
+        }
+    }
+}
