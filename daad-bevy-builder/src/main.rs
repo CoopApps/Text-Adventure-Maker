@@ -18,6 +18,7 @@ fn main() {
         }))
         .init_resource::<builder::state::BuilderState>()
         .init_resource::<builder::ui::playtest_ui::PlaytestState>()
+        .init_resource::<builder::ui::dialogue_ui::DialogueEditorState>()
         .add_systems(Startup, setup)
         .add_systems(Update, (
             builder::ui::main_menu::render_menu,
@@ -109,6 +110,13 @@ fn main() {
         .add_systems(Update, (
             // Template systems
             builder::ui::templates_ui::handle_insert_template_button,
+        ))
+        .add_systems(Update, (
+            // Dialogue tree systems
+            builder::ui::dialogue_ui::handle_new_dialogue_tree_button,
+            builder::ui::dialogue_ui::handle_add_node_button,
+            builder::ui::dialogue_ui::handle_generate_dialogue_rules_button,
+            builder::ui::dialogue_ui::handle_back_to_tree_list_button,
         ))
         .run();
 }

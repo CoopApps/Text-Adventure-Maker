@@ -7,12 +7,14 @@ use super::sound_ui::render_sound_panel;
 use super::graphics_ui::render_graphics_panel;
 use super::playtest_ui::{render_playtest_panel, PlaytestState};
 use super::templates_ui::render_templates_panel;
+use super::dialogue_ui::{render_dialogue_panel, DialogueEditorState};
 
 /// Render the active panel content
 pub fn render_active_panel(
     mut commands: Commands,
     state: Res<BuilderState>,
     playtest: Res<PlaytestState>,
+    dialogue: Res<DialogueEditorState>,
     query: Query<Entity, With<PanelContent>>,
 ) {
     // Clean up old panel content
@@ -52,6 +54,7 @@ pub fn render_active_panel(
                 Panel::Graphics => render_graphics_panel(parent, &state),
                 Panel::Sounds => render_sound_panel(parent, &state),
                 Panel::Templates => render_templates_panel(parent, &state),
+                Panel::Dialogue => render_dialogue_panel(parent, &state, &dialogue),
                 Panel::Analytics => render_analytics_panel(parent, &state),
                 Panel::Messages => render_messages_panel(parent, &state),
                 Panel::Preview => render_playtest_panel(parent, &state, &playtest),

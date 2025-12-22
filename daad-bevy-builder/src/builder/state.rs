@@ -49,6 +49,7 @@ pub enum Panel {
     Graphics,      // Graphics/pictures manager
     Sounds,        // Sound & music manager
     Templates,     // Script templates library
+    Dialogue,      // Conversation tree builder
     Analytics,     // Game statistics and analysis
     Messages,      // Message editor
     Preview,       // Test the game
@@ -67,6 +68,7 @@ impl Panel {
             Panel::Graphics => "Graphics",
             Panel::Sounds => "Sounds",
             Panel::Templates => "Templates",
+            Panel::Dialogue => "Dialogue",
             Panel::Analytics => "Analytics",
             Panel::Messages => "Messages",
             Panel::Preview => "Preview",
@@ -85,6 +87,7 @@ impl Panel {
             Panel::Graphics => "🖼️",
             Panel::Sounds => "🔊",
             Panel::Templates => "📝",
+            Panel::Dialogue => "🗣️",
             Panel::Analytics => "📊",
             Panel::Messages => "💬",
             Panel::Preview => "▶️",
