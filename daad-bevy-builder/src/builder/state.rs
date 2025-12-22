@@ -48,6 +48,7 @@ pub enum Panel {
     Vocabulary,    // Vocabulary/words editor
     Graphics,      // Graphics/pictures manager
     Sounds,        // Sound & music manager
+    Templates,     // Script templates library
     Analytics,     // Game statistics and analysis
     Messages,      // Message editor
     Preview,       // Test the game
@@ -65,6 +66,7 @@ impl Panel {
             Panel::Vocabulary => "Vocabulary",
             Panel::Graphics => "Graphics",
             Panel::Sounds => "Sounds",
+            Panel::Templates => "Templates",
             Panel::Analytics => "Analytics",
             Panel::Messages => "Messages",
             Panel::Preview => "Preview",
@@ -82,6 +84,7 @@ impl Panel {
             Panel::Vocabulary => "📖",
             Panel::Graphics => "🖼️",
             Panel::Sounds => "🔊",
+            Panel::Templates => "📝",
             Panel::Analytics => "📊",
             Panel::Messages => "💬",
             Panel::Preview => "▶️",

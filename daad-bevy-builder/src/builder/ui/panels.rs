@@ -6,6 +6,7 @@ use super::analytics_ui::render_analytics_panel;
 use super::sound_ui::render_sound_panel;
 use super::graphics_ui::render_graphics_panel;
 use super::playtest_ui::{render_playtest_panel, PlaytestState};
+use super::templates_ui::render_templates_panel;
 
 /// Render the active panel content
 pub fn render_active_panel(
@@ -50,6 +51,7 @@ pub fn render_active_panel(
                 Panel::Vocabulary => render_vocabulary_panel(parent, &state),
                 Panel::Graphics => render_graphics_panel(parent, &state),
                 Panel::Sounds => render_sound_panel(parent, &state),
+                Panel::Templates => render_templates_panel(parent, &state),
                 Panel::Analytics => render_analytics_panel(parent, &state),
                 Panel::Messages => render_messages_panel(parent, &state),
                 Panel::Preview => render_playtest_panel(parent, &state, &playtest),

@@ -10,6 +10,7 @@ pub mod analytics_ui;
 pub mod sound_ui;
 pub mod graphics_ui;
 pub mod playtest_ui;
+pub mod templates_ui;
 
 pub use export_ui::*;
 pub use vocabulary_ui::*;
@@ -18,3 +19,4 @@ pub use analytics_ui::*;
 pub use sound_ui::*;
 pub use graphics_ui::*;
 pub use playtest_ui::*;
+pub use templates_ui::*;

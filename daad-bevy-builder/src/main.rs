@@ -106,6 +106,10 @@ fn main() {
             builder::ui::playtest_ui::handle_quick_command_button,
             builder::ui::playtest_ui::handle_keyboard_input,
         ))
+        .add_systems(Update, (
+            // Template systems
+            builder::ui::templates_ui::handle_insert_template_button,
+        ))
         .run();
 }
 
