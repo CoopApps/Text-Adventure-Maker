@@ -529,6 +529,12 @@ impl Action {
             ActionType::Beep { duration, pitch } => {
                 format!("Beep (duration: {}, pitch: {})", duration, pitch)
             }
+            ActionType::PlaySound { sound_id } => {
+                format!("Play sound {}", sound_id)
+            }
+            ActionType::StopSound { sound_id } => {
+                format!("Stop sound {}", sound_id)
+            }
             ActionType::Picture { picture_id } => {
                 format!("Display picture {}", picture_id)
             }
@@ -636,8 +642,10 @@ pub enum ActionType {
     RamSave,                             // RAMSAVE - save to RAM
     RamLoad,                             // RAMLOAD - load from RAM
 
-    // Sound/Graphics (non-MALUVA)
+    // Sound/Graphics (non-MAAD)
     Beep { duration: u8, pitch: u8 },   // BEEP - make sound
+    PlaySound { sound_id: u8 },         // Play sound effect or music
+    StopSound { sound_id: u8 },         // Stop playing sound
     Picture { picture_id: u8 },          // PICTURE - display picture
 
     // Display attributes

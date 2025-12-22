@@ -207,6 +207,21 @@ impl DaadCodeGenerator {
             }
         }
 
+        // Add sound library reference
+        if !game.sounds.is_empty() {
+            header.push_str("; Sound Library (for HTML export)\n");
+            header.push_str("; Use PlaySound <id> / StopSound <id> actions in rules\n");
+            for sound in &game.sounds {
+                header.push_str(&format!(
+                    "; Sound {}: {} ({:?})\n",
+                    sound.id,
+                    sound.name,
+                    sound.sound_type
+                ));
+            }
+            header.push_str("\n");
+        }
+
         header.push_str("\n");
         header
     }
@@ -941,6 +956,14 @@ impl DaadCodeGenerator {
             // Sound/Graphics
             ActionType::Beep { duration, pitch } => {
                 format!("BEEP {} {}", duration, pitch)
+            }
+            ActionType::PlaySound { sound_id } => {
+                // PlaySound is custom for HTML export - generates comment for reference
+                format!("; PlaySound {} (HTML-only feature)", sound_id)
+            }
+            ActionType::StopSound { sound_id } => {
+                // StopSound is custom for HTML export - generates comment for reference
+                format!("; StopSound {} (HTML-only feature)", sound_id)
             }
             ActionType::Picture { picture_id } => {
                 format!("PICTURE {}", picture_id)
