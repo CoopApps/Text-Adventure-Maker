@@ -158,6 +158,138 @@ pub fn render_export_panel(
                 ..default()
             });
 
+            // Recent Files Section
+            if !state.recent_files.is_empty() {
+                parent.spawn(TextBundle::from_section(
+                    "📂 Recent Projects",
+                    TextStyle {
+                        font_size: 18.0,
+                        color: Color::rgb(0.9, 0.9, 1.0),
+                        ..default()
+                    },
+                ));
+
+                parent.spawn(TextBundle::from_section(
+                    "Click to load a recent project",
+                    TextStyle {
+                        font_size: 12.0,
+                        color: Color::rgb(0.6, 0.6, 0.6),
+                        ..default()
+                    },
+                ));
+
+                // Recent files list
+                for (idx, filepath) in state.recent_files.iter().take(5).enumerate() {
+                    // Extract just the filename
+                    let filename = std::path::Path::new(filepath)
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or(filepath);
+
+                    parent
+                        .spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    padding: UiRect::all(Val::Px(10.0)),
+                                    margin: UiRect::top(Val::Px(4.0)),
+                                    border: UiRect::all(Val::Px(1.0)),
+                                    width: Val::Percent(100.0),
+                                    justify_content: JustifyContent::Start,
+                                    ..default()
+                                },
+                                background_color: Color::rgb(0.2, 0.25, 0.3).into(),
+                                border_color: Color::rgb(0.3, 0.4, 0.5).into(),
+                                ..default()
+                            },
+                            LoadRecentFileButton {
+                                index: idx,
+                            },
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn(TextBundle::from_section(
+                                format!("📄 {}", filename),
+                                TextStyle {
+                                    font_size: 12.0,
+                                    color: Color::rgb(0.9, 0.9, 0.9),
+                                    ..default()
+                                },
+                            ));
+                        });
+                }
+
+                // Separator
+                parent.spawn(NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Px(2.0),
+                        margin: UiRect::vertical(Val::Px(15.0)),
+                        ..default()
+                    },
+                    background_color: Color::rgb(0.3, 0.3, 0.35).into(),
+                    ..default()
+                });
+            }
+
+            // Auto-save toggle
+            parent.spawn(TextBundle::from_section(
+                "⚙️ Auto-Save",
+                TextStyle {
+                    font_size: 16.0,
+                    color: Color::rgb(0.9, 0.9, 1.0),
+                    ..default()
+                },
+            ));
+
+            parent
+                .spawn((
+                    ButtonBundle {
+                        style: Style {
+                            padding: UiRect::all(Val::Px(10.0)),
+                            margin: UiRect::vertical(Val::Px(4.0)),
+                            border: UiRect::all(Val::Px(1.0)),
+                            ..default()
+                        },
+                        background_color: if state.auto_save_enabled {
+                            Color::rgb(0.3, 0.6, 0.3)
+                        } else {
+                            Color::rgb(0.5, 0.3, 0.3)
+                        }.into(),
+                        border_color: if state.auto_save_enabled {
+                            Color::rgb(0.4, 0.8, 0.4)
+                        } else {
+                            Color::rgb(0.6, 0.4, 0.4)
+                        }.into(),
+                        ..default()
+                    },
+                    ToggleAutoSaveButton,
+                ))
+                .with_children(|btn| {
+                    btn.spawn(TextBundle::from_section(
+                        if state.auto_save_enabled {
+                            "✓ Auto-Save Enabled (every 60 seconds)"
+                        } else {
+                            "✗ Auto-Save Disabled"
+                        },
+                        TextStyle {
+                            font_size: 12.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    ));
+                });
+
+            // Separator
+            parent.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(2.0),
+                    margin: UiRect::vertical(Val::Px(15.0)),
+                    ..default()
+                },
+                background_color: Color::rgb(0.3, 0.3, 0.35).into(),
+                ..default()
+            });
+
             // DAAD Export Section
             parent.spawn(TextBundle::from_section(
                 "📤 Export to DAAD Source Code",
@@ -671,6 +803,47 @@ pub fn handle_save_json_button(
     }
 }
 
+/// Handle load recent file button
+pub fn handle_load_recent_file_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &LoadRecentFileButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(filepath) = state.recent_files.get(button.index).cloned() {
+                info!("Loading recent file: {}", filepath);
+                match state.load_game(&filepath) {
+                    Ok(_) => {
+                        info!("✅ Successfully loaded: {}", filepath);
+                    }
+                    Err(e) => {
+                        error!("❌ Failed to load file: {}", e);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Handle toggle auto-save button
+pub fn handle_toggle_auto_save_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<ToggleAutoSaveButton>),
+    >,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            state.auto_save_enabled = !state.auto_save_enabled;
+            info!("Auto-save {}", if state.auto_save_enabled { "enabled" } else { "disabled" });
+        }
+    }
+}
+
 /// Handle export DAAD button
 pub fn handle_export_daad_button(
     state: Res<BuilderState>,
@@ -996,3 +1169,11 @@ pub(crate) struct PlayInBrowserButton;
 
 #[derive(Component)]
 pub(crate) struct ExportMobileButton;
+
+#[derive(Component)]
+pub(crate) struct LoadRecentFileButton {
+    pub index: usize,
+}
+
+#[derive(Component)]
+pub(crate) struct ToggleAutoSaveButton;

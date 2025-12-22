@@ -32,6 +32,7 @@ fn main() {
             builder::ui::toolbar::handle_toolbar_clicks,
             viewer::code_display::render_code_viewer,
             handle_keyboard_shortcuts,
+            auto_save_system,
         ))
         .add_systems(Update, (
             // Location editor systems
@@ -129,6 +130,8 @@ fn main() {
             // Export systems
             builder::ui::export_ui::render_export_panel,
             builder::ui::export_ui::handle_save_json_button,
+            builder::ui::export_ui::handle_load_recent_file_button,
+            builder::ui::export_ui::handle_toggle_auto_save_button,
             builder::ui::export_ui::handle_export_daad_button,
             builder::ui::export_ui::handle_export_mobile_button,
             builder::ui::export_ui::handle_preview_daad_button,
@@ -198,8 +201,22 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, mut state: ResMut<builder::state::BuilderState>) {
     commands.spawn(Camera2dBundle::default());
+
+    // Load recent files on startup
+    state.load_recent_files();
+}
+
+/// Auto-save system - runs every frame and checks if auto-save is needed
+fn auto_save_system(
+    mut state: ResMut<builder::state::BuilderState>,
+    time: Res<Time>,
+) {
+    let current_time = time.elapsed_seconds_f64();
+    if let Err(e) = state.auto_save(current_time) {
+        error!("Auto-save failed: {}", e);
+    }
 }
 
 fn handle_keyboard_shortcuts(
