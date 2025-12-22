@@ -6,7 +6,9 @@ pub mod panels;
 pub mod export_ui;
 pub mod vocabulary_ui;
 pub mod game_info_ui;
+pub mod analytics_ui;
 
 pub use export_ui::*;
 pub use vocabulary_ui::*;
 pub use game_info_ui::*;
+pub use analytics_ui::*;

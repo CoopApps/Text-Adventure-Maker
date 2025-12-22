@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use crate::builder::state::{BuilderState, Panel};
 use super::vocabulary_ui::render_vocabulary_panel;
 use super::game_info_ui::render_game_info_panel;
+use super::analytics_ui::render_analytics_panel;
 
 /// Render the active panel content
 pub fn render_active_panel(
@@ -44,6 +45,7 @@ pub fn render_active_panel(
                 Panel::Flags => render_flags_panel(parent, &state),
                 Panel::Vocabulary => render_vocabulary_panel(parent, &state),
                 Panel::Graphics => render_graphics_panel(parent, &state),
+                Panel::Analytics => render_analytics_panel(parent, &state),
                 Panel::Messages => render_messages_panel(parent, &state),
                 Panel::Preview => render_preview_panel(parent, &state),
                 Panel::Export => render_export_panel(parent, &state),
