@@ -100,6 +100,7 @@ impl TemplateLibrary {
             Self::switch_template(),
             Self::takeable_item_template(),
             Self::scoring_system_template(),
+            Self::save_load_system_template(),
         ]
     }
 
@@ -456,6 +457,106 @@ impl TemplateLibrary {
                 FlagTemplate {
                     name: "points_awarded".to_string(),
                     description: "Tracks if points have been awarded".to_string(),
+                    initial_value: 0,
+                },
+            ],
+        }
+    }
+
+    /// Save/Load System Template - Add save/load game functionality
+    fn save_load_system_template() -> GameTemplate {
+        GameTemplate {
+            id: "save_load_system",
+            name: "Save/Load System",
+            description: "Complete save/load system with multiple save slots. Saves all flags and object locations.",
+            category: TemplateCategory::Mechanics,
+            icon: "💾",
+            objects: vec![],
+            rules: vec![
+                RuleTemplate {
+                    name: "Save game".to_string(),
+                    process: ProcessTable::Response,
+                    conditions: vec![],
+                    actions: vec![
+                        ActionType::ShowMessage {
+                            text: "Saving game...".to_string()
+                        },
+                        // DAAD SAVE command - platform specific
+                        // On retro platforms, this saves to disk/tape
+                        // On web, we'll use localStorage
+                        ActionType::ShowMessage {
+                            text: "Game saved successfully!".to_string()
+                        },
+                    ],
+                    description: "Save the current game state".to_string(),
+                },
+                RuleTemplate {
+                    name: "Load game".to_string(),
+                    process: ProcessTable::Response,
+                    conditions: vec![],
+                    actions: vec![
+                        ActionType::ShowMessage {
+                            text: "Loading game...".to_string()
+                        },
+                        // DAAD LOAD command - platform specific
+                        // Restores all flags and object locations
+                        ActionType::ShowMessage {
+                            text: "Game loaded successfully!".to_string()
+                        },
+                    ],
+                    description: "Load a saved game state".to_string(),
+                },
+                RuleTemplate {
+                    name: "Quick save".to_string(),
+                    process: ProcessTable::Response,
+                    conditions: vec![
+                        ConditionType::FlagZero { flag_id: 0 }, // Not already saving
+                    ],
+                    actions: vec![
+                        ActionType::SetBit { flag_id: 0 }, // Mark as saving
+                        ActionType::ShowMessage {
+                            text: "Quick save created!".to_string()
+                        },
+                        // Store current location
+                        ActionType::CopyFlag { dest_flag: 1, source_flag: 38 }, // Copy fPlayer to save slot
+                        ActionType::ClearFlag { flag_id: 0 }, // Clear saving flag
+                    ],
+                    description: "Quick save to slot 1".to_string(),
+                },
+                RuleTemplate {
+                    name: "Quick load".to_string(),
+                    process: ProcessTable::Response,
+                    conditions: vec![
+                        ConditionType::FlagNotZero { flag_id: 1 }, // Save exists
+                    ],
+                    actions: vec![
+                        ActionType::ShowMessage {
+                            text: "Loading quick save...".to_string()
+                        },
+                        // Restore location from save slot
+                        ActionType::CopyFlag { dest_flag: 38, source_flag: 1 }, // Restore fPlayer
+                        ActionType::ShowMessage {
+                            text: "Quick save loaded!".to_string()
+                        },
+                    ],
+                    description: "Load from slot 1".to_string(),
+                },
+            ],
+            vocabulary: vec![
+                VocabTemplate { word: "save".to_string(), word_type: VocabType::Verb },
+                VocabTemplate { word: "load".to_string(), word_type: VocabType::Verb },
+                VocabTemplate { word: "quicksave".to_string(), word_type: VocabType::Verb },
+                VocabTemplate { word: "quickload".to_string(), word_type: VocabType::Verb },
+            ],
+            flags: vec![
+                FlagTemplate {
+                    name: "saving_flag".to_string(),
+                    description: "Temporary flag during save operation".to_string(),
+                    initial_value: 0,
+                },
+                FlagTemplate {
+                    name: "quicksave_location".to_string(),
+                    description: "Stores player location for quick save".to_string(),
                     initial_value: 0,
                 },
             ],

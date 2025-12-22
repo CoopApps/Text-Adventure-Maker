@@ -496,6 +496,12 @@ fn remap_action_ids(
         ActionType::SetFlag { flag_id, value } => {
             ActionType::SetFlag { flag_id: flag_id + flag_id_offset, value: *value }
         }
+        ActionType::CopyFlag { dest_flag, source_flag } => {
+            ActionType::CopyFlag {
+                dest_flag: dest_flag + flag_id_offset,
+                source_flag: source_flag + flag_id_offset
+            }
+        }
         _ => action.clone(), // No remapping needed
     }
 }
