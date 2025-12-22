@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::window::ReceivedCharacter;
 
 /// Modal backdrop component - darkens the background
 #[derive(Component)]
@@ -558,8 +559,13 @@ pub fn render_text_input_modal(
                 });
 
                 // Hint text
+                let hint = if modal_state.multiline {
+                    "Type to edit. Use Enter for new lines. Press Esc to cancel, or click Save."
+                } else {
+                    "Type to edit. Press Enter to save, Esc to cancel."
+                };
                 modal.spawn(TextBundle::from_section(
-                    "Type to edit. Press Enter to save, Esc to cancel.",
+                    hint,
                     TextStyle {
                         font_size: 11.0,
                         color: Color::rgb(0.6, 0.6, 0.6),
@@ -630,10 +636,9 @@ pub fn render_text_input_modal(
 }
 
 /// Handle keyboard input for text input modal
-/// Note: For now this only handles Escape to cancel. Full text editing via keyboard
-/// will be added in a future update. Use the Save button to confirm changes.
 pub fn handle_text_input_modal_keyboard(
     keys: Res<Input<KeyCode>>,
+    mut char_events: EventReader<ReceivedCharacter>,
     mut modal_state: ResMut<TextInputModalState>,
     mut commands: Commands,
     backdrop_query: Query<Entity, With<ModalBackdrop>>,
@@ -648,6 +653,37 @@ pub fn handle_text_input_modal_keyboard(
         for entity in backdrop_query.iter() {
             commands.entity(entity).despawn_recursive();
         }
+        return;
+    }
+
+    // Handle Enter - save (only for single-line)
+    if keys.just_pressed(KeyCode::Return) && !modal_state.multiline {
+        modal_state.is_open = false;
+        for entity in backdrop_query.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+        return;
+    }
+
+    // Handle Backspace - delete last character
+    if keys.just_pressed(KeyCode::Back) {
+        modal_state.current_value.pop();
+    }
+
+    // Handle character input
+    for event in char_events.read() {
+        let c = event.char;
+
+        // Filter out control characters except newline (for multiline)
+        if c.is_control() {
+            if c == '\n' && modal_state.multiline {
+                modal_state.current_value.push(c);
+            }
+            continue;
+        }
+
+        // Add character to text
+        modal_state.current_value.push(c);
     }
 }
 
@@ -665,7 +701,225 @@ pub fn handle_text_input_modal_save(
         if *interaction == Interaction::Pressed {
             // Close modal but keep data for callback
             modal_state.is_open = false;
-            
+
+            for entity in backdrop_query.iter() {
+                commands.entity(entity).despawn_recursive();
+            }
+        }
+    }
+}
+
+// ============================================================================
+// CONFIRMATION MODAL SYSTEM
+// ============================================================================
+
+/// Confirmation modal state resource
+#[derive(Resource, Default)]
+pub struct ConfirmationModalState {
+    pub is_open: bool,
+    pub title: String,
+    pub message: String,
+    pub callback_id: Option<String>, // ID to identify what action to confirm
+}
+
+impl ConfirmationModalState {
+    pub fn open(&mut self, title: &str, message: &str, callback_id: &str) {
+        self.is_open = true;
+        self.title = title.to_string();
+        self.message = message.to_string();
+        self.callback_id = Some(callback_id.to_string());
+    }
+
+    pub fn close(&mut self) {
+        self.is_open = false;
+        self.callback_id = None;
+    }
+
+    pub fn confirm(&mut self) -> Option<String> {
+        let callback = self.callback_id.clone();
+        self.close();
+        callback
+    }
+}
+
+/// Confirmation modal marker
+#[derive(Component)]
+pub struct ConfirmationModal;
+
+/// Confirm button for confirmation modal
+#[derive(Component)]
+pub struct ConfirmButton;
+
+/// Cancel button for confirmation modal
+#[derive(Component)]
+pub struct CancelConfirmButton;
+
+/// Render confirmation modal
+pub fn render_confirmation_modal(
+    mut commands: Commands,
+    modal_state: Res<ConfirmationModalState>,
+    query: Query<Entity, With<ConfirmationModal>>,
+) {
+    if !modal_state.is_open {
+        // Close any existing modals
+        for entity in query.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+        return;
+    }
+
+    // Don't re-render if already exists
+    if !query.is_empty() {
+        return;
+    }
+
+    // Spawn modal
+    let backdrop_id = spawn_modal_backdrop(&mut commands);
+
+    commands.entity(backdrop_id)
+        .insert(ConfirmationModal)
+        .with_children(|backdrop| {
+            // Modal container
+            backdrop.spawn((
+                NodeBundle {
+                    style: Style {
+                        width: Val::Px(450.0),
+                        height: Val::Px(220.0),
+                        flex_direction: FlexDirection::Column,
+                        padding: UiRect::all(Val::Px(20.0)),
+                        row_gap: Val::Px(15.0),
+                        border: UiRect::all(Val::Px(2.0)),
+                        ..default()
+                    },
+                    background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                    border_color: Color::rgb(0.8, 0.4, 0.4).into(), // Red border for warning
+                    ..default()
+                },
+                ModalContainer,
+            ))
+            .with_children(|modal| {
+                // Title with warning icon
+                modal.spawn(TextBundle::from_section(
+                    format!("⚠️  {}", modal_state.title),
+                    TextStyle {
+                        font_size: 18.0,
+                        color: Color::rgb(1.0, 0.8, 0.6),
+                        ..default()
+                    },
+                ));
+
+                // Message
+                modal.spawn(TextBundle::from_section(
+                    &modal_state.message,
+                    TextStyle {
+                        font_size: 14.0,
+                        color: Color::rgb(0.9, 0.9, 0.9),
+                        ..default()
+                    },
+                ));
+
+                // Action buttons
+                modal.spawn(NodeBundle {
+                    style: Style {
+                        display: Display::Flex,
+                        flex_direction: FlexDirection::Row,
+                        column_gap: Val::Px(10.0),
+                        margin: UiRect::top(Val::Px(20.0)),
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|row| {
+                    // Cancel button
+                    row.spawn((
+                        ButtonBundle {
+                            style: Style {
+                                padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
+                                flex_grow: 1.0,
+                                justify_content: JustifyContent::Center,
+                                ..default()
+                            },
+                            background_color: Color::rgb(0.4, 0.4, 0.4).into(),
+                            ..default()
+                        },
+                        CancelConfirmButton,
+                    ))
+                    .with_children(|btn| {
+                        btn.spawn(TextBundle::from_section(
+                            "Cancel",
+                            TextStyle {
+                                font_size: 14.0,
+                                color: Color::WHITE,
+                                ..default()
+                            },
+                        ));
+                    });
+
+                    // Confirm button
+                    row.spawn((
+                        ButtonBundle {
+                            style: Style {
+                                padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
+                                flex_grow: 1.0,
+                                justify_content: JustifyContent::Center,
+                                ..default()
+                            },
+                            background_color: Color::rgb(0.8, 0.3, 0.3).into(), // Red for danger
+                            ..default()
+                        },
+                        ConfirmButton,
+                    ))
+                    .with_children(|btn| {
+                        btn.spawn(TextBundle::from_section(
+                            "Delete",
+                            TextStyle {
+                                font_size: 14.0,
+                                color: Color::WHITE,
+                                ..default()
+                            },
+                        ));
+                    });
+                });
+            });
+        });
+}
+
+/// Handle cancel button for confirmation modal
+pub fn handle_cancel_confirmation_button(
+    mut commands: Commands,
+    mut modal_state: ResMut<ConfirmationModalState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<CancelConfirmButton>),
+    >,
+    backdrop_query: Query<Entity, With<ModalBackdrop>>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            modal_state.close();
+            for entity in backdrop_query.iter() {
+                commands.entity(entity).despawn_recursive();
+            }
+        }
+    }
+}
+
+/// Handle confirm button for confirmation modal
+/// Note: This just closes the modal and sets confirmed flag.
+/// The actual deletion is handled by checking the callback_id in delete handlers.
+pub fn handle_confirm_button(
+    mut commands: Commands,
+    mut modal_state: ResMut<ConfirmationModalState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<ConfirmButton>),
+    >,
+    backdrop_query: Query<Entity, With<ModalBackdrop>>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            // Don't clear callback_id yet - let the delete handler read it
+            modal_state.is_open = false;
             for entity in backdrop_query.iter() {
                 commands.entity(entity).despawn_recursive();
             }

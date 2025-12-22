@@ -622,9 +622,10 @@ pub fn handle_edit_flag_button(
     }
 }
 
-/// Handle delete flag button
+/// Handle delete flag button - opens confirmation modal
 pub fn handle_delete_flag_button(
-    mut state: ResMut<BuilderState>,
+    state: Res<BuilderState>,
+    mut confirmation_modal: ResMut<crate::builder::ui::components::ConfirmationModalState>,
     mut interaction_query: Query<
         (&Interaction, &DeleteFlagButton),
         Changed<Interaction>,
@@ -632,10 +633,36 @@ pub fn handle_delete_flag_button(
 ) {
     for (interaction, button) in interaction_query.iter() {
         if *interaction == Interaction::Pressed {
-            if let Some(idx) = state.current_game.flags.iter().position(|f| f.id == button.flag_id) {
-                state.current_game.flags.remove(idx);
-                state.unsaved_changes = true;
+            if let Some(flag) = state.current_game.flags.iter().find(|f| f.id == button.flag_id) {
+                confirmation_modal.open(
+                    "Delete Flag",
+                    &format!("Are you sure you want to delete flag '{}' (#{})?\n\nThis action cannot be undone.", flag.name, flag.id),
+                    &format!("delete_flag_{}", button.flag_id),
+                );
             }
+        }
+    }
+}
+
+/// Process confirmed flag deletion
+pub fn process_confirmed_flag_deletion(
+    mut state: ResMut<BuilderState>,
+    mut confirmation_modal: ResMut<crate::builder::ui::components::ConfirmationModalState>,
+) {
+    // Check if a deletion was confirmed
+    if let Some(callback_id) = &confirmation_modal.callback_id {
+        if callback_id.starts_with("delete_flag_") {
+            if let Some(flag_id_str) = callback_id.strip_prefix("delete_flag_") {
+                if let Ok(flag_id) = flag_id_str.parse::<u8>() {
+                    if let Some(idx) = state.current_game.flags.iter().position(|f| f.id == flag_id) {
+                        state.current_game.flags.remove(idx);
+                        state.unsaved_changes = true;
+                        info!("Deleted flag {}", flag_id);
+                    }
+                }
+            }
+            // Clear the callback after processing
+            confirmation_modal.close();
         }
     }
 }

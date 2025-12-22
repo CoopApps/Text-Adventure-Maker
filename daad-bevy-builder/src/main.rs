@@ -22,6 +22,7 @@ fn main() {
         .init_resource::<builder::ui::condition_action_modals::ConditionEditorState>()
         .init_resource::<builder::ui::condition_action_modals::ActionEditorState>()
         .init_resource::<builder::ui::components::TextInputModalState>()
+        .init_resource::<builder::ui::components::ConfirmationModalState>()
         .init_resource::<builder::debug::DebugState>()
         .add_systems(Startup, setup)
         .add_systems(Update, (
@@ -72,11 +73,14 @@ fn main() {
             builder::editors::rule_editor::handle_move_action_down_button,
         ))
         .add_systems(Update, (
-            // Condition/Action modal systems
+            // Modal systems (text input, confirmation, condition/action)
             builder::ui::components::handle_close_modal_button,
             builder::ui::components::render_text_input_modal,
             builder::ui::components::handle_text_input_modal_keyboard,
             builder::ui::components::handle_text_input_modal_save,
+            builder::ui::components::render_confirmation_modal,
+            builder::ui::components::handle_confirm_button,
+            builder::ui::components::handle_cancel_confirmation_button,
             builder::ui::condition_action_modals::render_condition_editor_modal,
             builder::ui::condition_action_modals::render_action_editor_modal,
             builder::ui::condition_action_modals::handle_condition_type_button,
@@ -96,6 +100,7 @@ fn main() {
             builder::editors::property_forms::handle_add_message_button,
             builder::editors::property_forms::handle_edit_flag_button,
             builder::editors::property_forms::handle_delete_flag_button,
+            builder::editors::property_forms::process_confirmed_flag_deletion,
             builder::editors::property_forms::handle_edit_message_button,
             builder::editors::property_forms::handle_delete_message_button,
         ))
