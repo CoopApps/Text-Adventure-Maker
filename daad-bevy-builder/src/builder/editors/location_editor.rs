@@ -450,25 +450,107 @@ fn render_property_panel(parent: &mut ChildBuilder, location: &Location, _state:
             ));
 
             parent.spawn(TextBundle::from_section(
-                format!("Connections: {}", location.connections.len()),
+                format!("Connections ({}):", location.connections.len()),
                 TextStyle {
-                    font_size: 12.0,
+                    font_size: 13.0,
                     color: Color::rgb(0.7, 0.9, 1.0),
                     ..default()
                 },
             ));
 
-            // List connections
-            for conn in &location.connections {
-                parent.spawn(TextBundle::from_section(
-                    format!("  {:?} → {}", conn.direction, conn.target_location),
-                    TextStyle {
-                        font_size: 11.0,
-                        color: Color::rgb(0.6, 0.8, 0.9),
+            // List connections with edit/delete buttons
+            for (idx, conn) in location.connections.iter().enumerate() {
+                parent.spawn(NodeBundle {
+                    style: Style {
+                        display: Display::Flex,
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
+                        padding: UiRect::all(Val::Px(6.0)),
+                        margin: UiRect::vertical(Val::Px(3.0)),
+                        column_gap: Val::Px(8.0),
+                        border: UiRect::all(Val::Px(1.0)),
                         ..default()
                     },
-                ));
+                    background_color: Color::rgba(0.2, 0.25, 0.3, 0.4).into(),
+                    border_color: Color::rgb(0.3, 0.4, 0.5).into(),
+                    ..default()
+                })
+                .with_children(|row| {
+                    // Connection info
+                    row.spawn(TextBundle::from_section(
+                        format!("{:?} → Loc #{}", conn.direction, conn.target_location),
+                        TextStyle {
+                            font_size: 11.0,
+                            color: Color::rgb(0.8, 0.9, 1.0),
+                            ..default()
+                        },
+                    ));
+
+                    // Spacer
+                    row.spawn(NodeBundle {
+                        style: Style {
+                            flex_grow: 1.0,
+                            ..default()
+                        },
+                        ..default()
+                    });
+
+                    // Delete button
+                    row.spawn((
+                        ButtonBundle {
+                            style: Style {
+                                padding: UiRect::axes(Val::Px(6.0), Val::Px(4.0)),
+                                border: UiRect::all(Val::Px(1.0)),
+                                ..default()
+                            },
+                            background_color: Color::rgb(0.6, 0.3, 0.3).into(),
+                            border_color: Color::rgb(0.7, 0.4, 0.4).into(),
+                            ..default()
+                        },
+                        DeleteConnectionButton {
+                            location_id: location.id,
+                            connection_index: idx,
+                        },
+                    ))
+                    .with_children(|btn| {
+                        btn.spawn(TextBundle::from_section(
+                            "🗑️",
+                            TextStyle {
+                                font_size: 10.0,
+                                color: Color::WHITE,
+                                ..default()
+                            },
+                        ));
+                    });
+                });
             }
+
+            // Add connection button
+            parent
+                .spawn((
+                    ButtonBundle {
+                        style: Style {
+                            padding: UiRect::all(Val::Px(8.0)),
+                            margin: UiRect::top(Val::Px(5.0)),
+                            border: UiRect::all(Val::Px(1.0)),
+                            ..default()
+                        },
+                        background_color: Color::rgb(0.3, 0.6, 0.5).into(),
+                        border_color: Color::rgb(0.4, 0.7, 0.6).into(),
+                        ..default()
+                    },
+                    AddConnectionButton { location_id: location.id },
+                ))
+                .with_children(|btn| {
+                    btn.spawn(TextBundle::from_section(
+                        "+ Add Connection",
+                        TextStyle {
+                            font_size: 12.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    ));
+                });
 
             // Edit buttons (TODO: wire up actual editing)
             parent
@@ -804,6 +886,17 @@ pub(crate) struct DeleteLocationButton {
     location_id: u8,
 }
 
+#[derive(Component)]
+pub(crate) struct AddConnectionButton {
+    location_id: u8,
+}
+
+#[derive(Component)]
+pub(crate) struct DeleteConnectionButton {
+    location_id: u8,
+    connection_index: usize,
+}
+
 // Drag state
 pub(crate) struct LocationDragState {
     location_id: u8,
@@ -909,6 +1002,84 @@ pub fn process_location_name_edit(
                 }
             }
             text_modal.close();
+        }
+    }
+}
+
+/// Handle add connection button - adds a North connection to first location as placeholder
+/// TODO: Show modal to select direction and target location
+pub fn handle_add_connection_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &AddConnectionButton),
+        (Changed<Interaction>, With<Button>),
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            // Find first valid target location (not self) before mutating
+            let target = state.current_game.locations.iter()
+                .find(|l| l.id != button.location_id)
+                .map(|l| l.id)
+                .unwrap_or(0);
+
+            // Now get mutable reference and add connection
+            if let Some(location) = state.current_game.locations.iter_mut().find(|l| l.id == button.location_id) {
+                // Add placeholder connection (North direction by default)
+                location.connections.push(Connection {
+                    direction: Direction::North,
+                    target_location: target,
+                    condition: None,
+                });
+
+                state.mark_dirty();
+                info!("Added connection from location {} to {}", button.location_id, target);
+            }
+        }
+    }
+}
+
+/// Handle delete connection button
+pub fn handle_delete_connection_button(
+    mut state: ResMut<BuilderState>,
+    mut confirmation_state: ResMut<crate::builder::ui::components::ConfirmationModalState>,
+    mut interaction_query: Query<
+        (&Interaction, &DeleteConnectionButton),
+        (Changed<Interaction>, With<Button>),
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            confirmation_state.open(
+                "Delete Connection",
+                "Are you sure you want to delete this connection?",
+                &format!("delete_connection_{}_{}", button.location_id, button.connection_index),
+            );
+        }
+    }
+}
+
+/// Process connection deletion after confirmation
+pub fn process_connection_deletion(
+    mut state: ResMut<BuilderState>,
+    confirmation_state: Res<crate::builder::ui::components::ConfirmationModalState>,
+) {
+    if let Some(callback_id) = &confirmation_state.callback_id {
+        if callback_id.starts_with("delete_connection_") {
+            if let Some(parts) = callback_id.strip_prefix("delete_connection_") {
+                let parts: Vec<&str> = parts.split('_').collect();
+                if parts.len() == 2 {
+                    if let (Ok(location_id), Ok(conn_idx)) = (parts[0].parse::<u8>(), parts[1].parse::<usize>()) {
+                        if let Some(location) = state.current_game.locations.iter_mut().find(|l| l.id == location_id) {
+                            if conn_idx < location.connections.len() {
+                                location.connections.remove(conn_idx);
+                                state.mark_dirty();
+                                info!("Deleted connection from location {} at index {}", location_id, conn_idx);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

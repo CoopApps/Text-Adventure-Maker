@@ -50,6 +50,9 @@ fn main() {
             builder::editors::location_editor::handle_connection_creation,
             builder::editors::location_editor::render_connection_preview,
             builder::editors::location_editor::process_location_name_edit,
+            builder::editors::location_editor::handle_add_connection_button,
+            builder::editors::location_editor::handle_delete_connection_button,
+            builder::editors::location_editor::process_connection_deletion,
         ))
         .add_systems(Update, (
             // Object editor systems (sidebar and basic actions)
