@@ -25,6 +25,7 @@ fn main() {
         .init_resource::<builder::ui::components::ConfirmationModalState>()
         .init_resource::<builder::ui::components::ConnectionEditorModalState>()
         .init_resource::<builder::ui::components::TooltipState>()
+        .init_resource::<builder::ui::components::NotificationManager>()
         .init_resource::<builder::ui::vocabulary_ui::VocabularySearchState>()
         .init_resource::<builder::debug::DebugState>()
         .add_systems(Startup, setup)
@@ -41,6 +42,8 @@ fn main() {
             render_status_bar,
             builder::ui::components::track_tooltip_hover,
             builder::ui::components::render_tooltip_display,
+            builder::ui::components::update_notifications,
+            builder::ui::components::render_notification_display,
         ))
         .add_systems(Update, (
             // Location editor systems
@@ -630,23 +633,36 @@ fn render_help_overlay(
 fn handle_keyboard_shortcuts(
     keys: Res<Input<KeyCode>>,
     mut state: ResMut<builder::state::BuilderState>,
+    mut notification_manager: ResMut<builder::ui::components::NotificationManager>,
+    time: Res<Time>,
 ) {
+    let current_time = time.elapsed_seconds_f64();
+
     // H or F1 = Toggle help overlay
     if keys.just_pressed(KeyCode::H) || keys.just_pressed(KeyCode::F1) {
         state.show_help_overlay = !state.show_help_overlay;
-        info!("Help overlay: {}", state.show_help_overlay);
+        notification_manager.add_info(
+            if state.show_help_overlay { "Help overlay shown" } else { "Help overlay hidden" },
+            current_time
+        );
     }
 
     // F2 = Toggle code viewer
     if keys.just_pressed(KeyCode::F2) {
         state.show_code_viewer = !state.show_code_viewer;
-        info!("Code viewer: {}", state.show_code_viewer);
+        notification_manager.add_info(
+            if state.show_code_viewer { "Code viewer shown" } else { "Code viewer hidden" },
+            current_time
+        );
     }
 
     // F5 = Toggle preview
     if keys.just_pressed(KeyCode::F5) {
         state.show_preview = !state.show_preview;
-        info!("Preview mode: {}", state.show_preview);
+        notification_manager.add_info(
+            if state.show_preview { "Preview mode enabled" } else { "Preview mode disabled" },
+            current_time
+        );
     }
 
     // Ctrl+S = Save project to JSON
@@ -665,15 +681,24 @@ fn handle_keyboard_shortcuts(
                     Ok(_) => {
                         state.current_file_path = Some(filepath.clone());
                         state.unsaved_changes = false;
-                        info!("✅ Project saved to: {}", filepath);
+                        notification_manager.add_success(
+                            format!("Project saved to {}", filepath),
+                            current_time
+                        );
                     }
                     Err(e) => {
-                        error!("❌ Failed to write JSON file: {}", e);
+                        notification_manager.add_error(
+                            format!("Failed to write file: {}", e),
+                            current_time
+                        );
                     }
                 }
             }
             Err(e) => {
-                error!("❌ Failed to serialize game to JSON: {}", e);
+                notification_manager.add_error(
+                    format!("Failed to serialize game: {}", e),
+                    current_time
+                );
             }
         }
     }
@@ -693,10 +718,16 @@ fn handle_keyboard_shortcuts(
         // Write to file
         match std::fs::write(&filepath, daad_code) {
             Ok(_) => {
-                info!("✅ DAAD source exported to: {}", filepath);
+                notification_manager.add_success(
+                    format!("DAAD source exported to {}", filepath),
+                    current_time
+                );
             }
             Err(e) => {
-                error!("❌ Failed to write DAAD source file: {}", e);
+                notification_manager.add_error(
+                    format!("Failed to export DAAD source: {}", e),
+                    current_time
+                );
             }
         }
     }
@@ -704,11 +735,14 @@ fn handle_keyboard_shortcuts(
     // Ctrl+N = New project
     if keys.pressed(KeyCode::ControlLeft) && keys.just_pressed(KeyCode::N) {
         if state.unsaved_changes {
-            warn!("⚠️ Unsaved changes exist. Save before creating new project.");
+            notification_manager.add_warning(
+                "Unsaved changes exist. Save before creating new project.",
+                current_time
+            );
             // TODO: Show confirmation modal
         } else {
             state.new_game("Untitled Adventure", "Unknown Author");
-            info!("✅ Created new project");
+            notification_manager.add_success("Created new project", current_time);
         }
     }
 

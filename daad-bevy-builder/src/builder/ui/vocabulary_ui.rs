@@ -1004,6 +1004,8 @@ pub fn handle_custom_word_type_button(
 pub fn handle_add_custom_word_button(
     mut state: ResMut<BuilderState>,
     mut search_state: ResMut<VocabularySearchState>,
+    mut notification_manager: ResMut<super::components::NotificationManager>,
+    time: Res<Time>,
     mut interaction_query: Query<
         &Interaction,
         (Changed<Interaction>, With<AddCustomWordButton>),
@@ -1012,28 +1014,35 @@ pub fn handle_add_custom_word_button(
     for interaction in interaction_query.iter() {
         if *interaction == Interaction::Pressed {
             let word = search_state.custom_word_input.trim().to_uppercase();
+            let current_time = time.elapsed_seconds_f64();
 
             // Validate word length (DAAD limit: 5 characters)
             if word.is_empty() {
-                warn!("Cannot add empty word");
+                notification_manager.add_error("Cannot add empty word", current_time);
                 continue;
             }
 
             if word.len() > 5 {
-                warn!("Word '{}' is too long (max 5 characters). Truncating.", word);
+                notification_manager.add_error(
+                    format!("Word '{}' is too long (max 5 characters)", word),
+                    current_time
+                );
                 search_state.custom_word_input = word[..5].to_string();
                 continue;
             }
 
             // Check if word already exists
             if state.current_game.vocabulary.iter().any(|v| v.word == word) {
-                warn!("Word '{}' already exists in vocabulary", word);
+                notification_manager.add_warning(
+                    format!("Word '{}' already exists in vocabulary", word),
+                    current_time
+                );
                 continue;
             }
 
             // Check vocabulary limit (DAAD limit: 255 words)
             if state.current_game.vocabulary.len() >= 255 {
-                warn!("Vocabulary is full (255 words max)");
+                notification_manager.add_error("Vocabulary is full (255 words max)", current_time);
                 continue;
             }
 
@@ -1053,7 +1062,10 @@ pub fn handle_add_custom_word_button(
             });
 
             state.mark_dirty();
-            info!("✅ Added custom word '{}' as {:?} (ID: {})", word, search_state.custom_word_type, next_id);
+            notification_manager.add_success(
+                format!("Added word '{}' as {:?}", word, search_state.custom_word_type),
+                current_time
+            );
 
             // Clear custom word input for next entry
             search_state.custom_word_input.clear();

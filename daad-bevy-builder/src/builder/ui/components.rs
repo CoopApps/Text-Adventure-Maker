@@ -1478,3 +1478,280 @@ pub fn render_tooltip_display(
             });
     }
 }
+
+// ============================================================================
+// NOTIFICATION/TOAST SYSTEM
+// ============================================================================
+
+/// Notification type
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum NotificationType {
+    Success,
+    Error,
+    Warning,
+    Info,
+}
+
+impl NotificationType {
+    pub fn color(&self) -> Color {
+        match self {
+            NotificationType::Success => Color::rgb(0.2, 0.7, 0.3),
+            NotificationType::Error => Color::rgb(0.8, 0.2, 0.2),
+            NotificationType::Warning => Color::rgb(0.9, 0.7, 0.2),
+            NotificationType::Info => Color::rgb(0.3, 0.5, 0.8),
+        }
+    }
+
+    pub fn icon(&self) -> &'static str {
+        match self {
+            NotificationType::Success => "✓",
+            NotificationType::Error => "✕",
+            NotificationType::Warning => "⚠",
+            NotificationType::Info => "ℹ",
+        }
+    }
+}
+
+/// Single notification
+#[derive(Clone)]
+pub struct Notification {
+    pub message: String,
+    pub notification_type: NotificationType,
+    pub created_at: f64,
+    pub duration: f64, // How long to show in seconds
+}
+
+impl Notification {
+    pub fn success(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            notification_type: NotificationType::Success,
+            created_at: 0.0, // Will be set when added
+            duration: 3.0,
+        }
+    }
+
+    pub fn error(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            notification_type: NotificationType::Error,
+            created_at: 0.0,
+            duration: 5.0, // Errors stay longer
+        }
+    }
+
+    pub fn warning(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            notification_type: NotificationType::Warning,
+            created_at: 0.0,
+            duration: 4.0,
+        }
+    }
+
+    pub fn info(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            notification_type: NotificationType::Info,
+            created_at: 0.0,
+            duration: 3.0,
+        }
+    }
+}
+
+/// Resource to manage notifications
+#[derive(Resource, Default)]
+pub struct NotificationManager {
+    pub notifications: Vec<Notification>,
+}
+
+impl NotificationManager {
+    pub fn add(&mut self, mut notification: Notification, current_time: f64) {
+        notification.created_at = current_time;
+        self.notifications.push(notification);
+    }
+
+    pub fn add_success(&mut self, message: impl Into<String>, current_time: f64) {
+        self.add(Notification::success(message), current_time);
+    }
+
+    pub fn add_error(&mut self, message: impl Into<String>, current_time: f64) {
+        self.add(Notification::error(message), current_time);
+    }
+
+    pub fn add_warning(&mut self, message: impl Into<String>, current_time: f64) {
+        self.add(Notification::warning(message), current_time);
+    }
+
+    pub fn add_info(&mut self, message: impl Into<String>, current_time: f64) {
+        self.add(Notification::info(message), current_time);
+    }
+
+    pub fn clear_expired(&mut self, current_time: f64) {
+        self.notifications.retain(|n| {
+            current_time - n.created_at < n.duration
+        });
+    }
+}
+
+/// Notification display marker
+#[derive(Component)]
+pub struct NotificationDisplay;
+
+/// Update and clean up expired notifications
+pub fn update_notifications(
+    mut notification_manager: ResMut<NotificationManager>,
+    time: Res<Time>,
+) {
+    let current_time = time.elapsed_seconds_f64();
+    notification_manager.clear_expired(current_time);
+}
+
+/// Render notification display
+pub fn render_notification_display(
+    mut commands: Commands,
+    notification_manager: Res<NotificationManager>,
+    query: Query<Entity, With<NotificationDisplay>>,
+) {
+    // Clean up old notification displays
+    for entity in query.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+
+    // Don't render if no notifications
+    if notification_manager.notifications.is_empty() {
+        return;
+    }
+
+    // Create notification container in top-right corner
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    right: Val::Px(20.0),
+                    top: Val::Px(80.0), // Below toolbar
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(10.0),
+                    max_width: Val::Px(350.0),
+                    ..default()
+                },
+                z_index: ZIndex::Global(300), // Above modals
+                ..default()
+            },
+            NotificationDisplay,
+        ))
+        .with_children(|parent| {
+            // Render each notification (newest first)
+            for notification in notification_manager.notifications.iter().rev() {
+                parent
+                    .spawn(NodeBundle {
+                        style: Style {
+                            padding: UiRect::all(Val::Px(12.0)),
+                            border: UiRect::all(Val::Px(2.0)),
+                            column_gap: Val::Px(10.0),
+                            flex_direction: FlexDirection::Row,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        background_color: Color::rgba(0.1, 0.1, 0.15, 0.95).into(),
+                        border_color: notification.notification_type.color().into(),
+                        ..default()
+                    })
+                    .with_children(|notification_box| {
+                        // Icon
+                        notification_box.spawn(
+                            TextBundle::from_section(
+                                notification.notification_type.icon(),
+                                TextStyle {
+                                    font_size: 20.0,
+                                    color: notification.notification_type.color(),
+                                    ..default()
+                                },
+                            )
+                            .with_style(Style {
+                                min_width: Val::Px(24.0),
+                                ..default()
+                            }),
+                        );
+
+                        // Message
+                        notification_box.spawn(TextBundle::from_section(
+                            &notification.message,
+                            TextStyle {
+                                font_size: 14.0,
+                                color: Color::rgb(0.95, 0.95, 0.95),
+                                ..default()
+                            },
+                        ));
+                    });
+            }
+        });
+}
+
+// ============================================================================
+// VALIDATION HELPERS
+// ============================================================================
+
+/// Validation result
+pub enum ValidationResult {
+    Valid,
+    Invalid(String), // Error message
+}
+
+impl ValidationResult {
+    pub fn is_valid(&self) -> bool {
+        matches!(self, ValidationResult::Valid)
+    }
+
+    pub fn error_message(&self) -> Option<&str> {
+        match self {
+            ValidationResult::Valid => None,
+            ValidationResult::Invalid(msg) => Some(msg),
+        }
+    }
+}
+
+/// Validate a text field is not empty
+pub fn validate_not_empty(value: &str, field_name: &str) -> ValidationResult {
+    if value.trim().is_empty() {
+        ValidationResult::Invalid(format!("{} cannot be empty", field_name))
+    } else {
+        ValidationResult::Valid
+    }
+}
+
+/// Validate text length is within bounds
+pub fn validate_length(value: &str, field_name: &str, min: usize, max: usize) -> ValidationResult {
+    let len = value.len();
+    if len < min {
+        ValidationResult::Invalid(format!("{} must be at least {} characters", field_name, min))
+    } else if len > max {
+        ValidationResult::Invalid(format!("{} must be at most {} characters", field_name, max))
+    } else {
+        ValidationResult::Valid
+    }
+}
+
+/// Validate a number is within range
+pub fn validate_range(value: u8, field_name: &str, min: u8, max: u8) -> ValidationResult {
+    if value < min || value > max {
+        ValidationResult::Invalid(format!("{} must be between {} and {}", field_name, min, max))
+    } else {
+        ValidationResult::Valid
+    }
+}
+
+/// Validate DAAD word (5 chars max, alphanumeric)
+pub fn validate_daad_word(value: &str) -> ValidationResult {
+    if value.is_empty() {
+        return ValidationResult::Invalid("Word cannot be empty".to_string());
+    }
+    if value.len() > 5 {
+        return ValidationResult::Invalid("DAAD words must be 5 characters or less".to_string());
+    }
+    if !value.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+        return ValidationResult::Invalid("Word can only contain letters, numbers, _ and -".to_string());
+    }
+    ValidationResult::Valid
+}
