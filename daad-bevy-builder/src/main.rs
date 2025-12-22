@@ -27,6 +27,7 @@ fn main() {
         .init_resource::<builder::ui::components::LocationEditorModalState>()
         .init_resource::<builder::ui::components::TooltipState>()
         .init_resource::<builder::ui::components::NotificationManager>()
+        .init_resource::<builder::ui::components::UndoRedoManager>()
         .init_resource::<builder::ui::vocabulary_ui::VocabularySearchState>()
         .init_resource::<builder::debug::DebugState>()
         .add_systems(Startup, setup)
@@ -649,6 +650,7 @@ fn handle_keyboard_shortcuts(
     keys: Res<Input<KeyCode>>,
     mut state: ResMut<builder::state::BuilderState>,
     mut notification_manager: ResMut<builder::ui::components::NotificationManager>,
+    mut undo_manager: ResMut<builder::ui::components::UndoRedoManager>,
     time: Res<Time>,
 ) {
     let current_time = time.elapsed_seconds_f64();
@@ -782,18 +784,36 @@ fn handle_keyboard_shortcuts(
         }
     }
 
-    // Ctrl+Z = Undo (placeholder - will be implemented with undo/redo system)
-    if keys.pressed(KeyCode::ControlLeft) && keys.just_pressed(KeyCode::Z) {
-        info!("⏮ Undo requested (not yet implemented)");
-        // TODO: Implement undo system
+    // Ctrl+Z = Undo
+    if keys.pressed(KeyCode::ControlLeft) && keys.just_pressed(KeyCode::Z) && !keys.pressed(KeyCode::ShiftLeft) {
+        if undo_manager.can_undo() {
+            if let Some(description) = undo_manager.undo(&mut state.current_game) {
+                state.mark_dirty();
+                notification_manager.add_info(
+                    format!("⏮ Undid: {}", description),
+                    current_time
+                );
+            }
+        } else {
+            notification_manager.add_warning("Nothing to undo", current_time);
+        }
     }
 
-    // Ctrl+Y or Ctrl+Shift+Z = Redo (placeholder)
+    // Ctrl+Y or Ctrl+Shift+Z = Redo
     if keys.pressed(KeyCode::ControlLeft) &&
        (keys.just_pressed(KeyCode::Y) ||
         (keys.pressed(KeyCode::ShiftLeft) && keys.just_pressed(KeyCode::Z))) {
-        info!("⏭ Redo requested (not yet implemented)");
-        // TODO: Implement redo system
+        if undo_manager.can_redo() {
+            if let Some(description) = undo_manager.redo(&mut state.current_game) {
+                state.mark_dirty();
+                notification_manager.add_info(
+                    format!("⏭ Redid: {}", description),
+                    current_time
+                );
+            }
+        } else {
+            notification_manager.add_warning("Nothing to redo", current_time);
+        }
     }
 
     // Ctrl+C = Copy (placeholder - will be implemented with copy/paste system)

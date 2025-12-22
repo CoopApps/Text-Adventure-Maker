@@ -1319,6 +1319,7 @@ pub fn handle_save_connection_button(
     mut commands: Commands,
     mut modal_state: ResMut<ConnectionEditorModalState>,
     mut state: ResMut<crate::builder::state::BuilderState>,
+    mut undo_manager: ResMut<UndoRedoManager>,
     mut interaction_query: Query<
         &Interaction,
         (Changed<Interaction>, With<SaveConnectionButton>),
@@ -1338,11 +1339,22 @@ pub fn handle_save_connection_button(
                 if let Some(index) = modal_state.connection_index {
                     // Edit existing connection
                     if index < location.connections.len() {
+                        let old_connection = location.connections[index].clone();
+                        undo_manager.push_change(ChangeRecord::ConnectionModified {
+                            location_id: modal_state.location_id,
+                            index,
+                            old_connection,
+                            new_connection: new_connection.clone(),
+                        });
                         location.connections[index] = new_connection;
                         info!("Updated connection at index {}", index);
                     }
                 } else {
                     // Add new connection
+                    undo_manager.push_change(ChangeRecord::ConnectionAdded {
+                        location_id: modal_state.location_id,
+                        connection: new_connection.clone(),
+                    });
                     location.connections.push(new_connection);
                     info!("Added new connection");
                 }
@@ -2166,6 +2178,7 @@ pub fn handle_save_location_button(
     mut state: ResMut<crate::builder::state::BuilderState>,
     mut modal_state: ResMut<LocationEditorModalState>,
     mut notification_manager: ResMut<NotificationManager>,
+    mut undo_manager: ResMut<UndoRedoManager>,
     time: Res<Time>,
     mut interaction_query: Query<
         &Interaction,
@@ -2184,19 +2197,43 @@ pub fn handle_save_location_button(
 
             // Find and update the location
             let location_id = modal_state.location_id;
-            let name = modal_state.name.clone();
-            let description = modal_state.description.clone();
-            let is_dark = modal_state.is_dark;
+            let new_name = modal_state.name.clone();
+            let new_description = modal_state.description.clone();
+            let new_is_dark = modal_state.is_dark;
 
             if let Some(location) = state.current_game.locations.iter_mut()
                 .find(|l| l.id == location_id) {
-                location.name = name.clone();
-                location.description = description;
-                location.is_dark = is_dark;
+                // Record changes for undo/redo
+                if location.name != new_name {
+                    undo_manager.push_change(ChangeRecord::LocationNameChanged {
+                        location_id,
+                        old_value: location.name.clone(),
+                        new_value: new_name.clone(),
+                    });
+                }
+                if location.description != new_description {
+                    undo_manager.push_change(ChangeRecord::LocationDescriptionChanged {
+                        location_id,
+                        old_value: location.description.clone(),
+                        new_value: new_description.clone(),
+                    });
+                }
+                if location.is_dark != new_is_dark {
+                    undo_manager.push_change(ChangeRecord::LocationDarkChanged {
+                        location_id,
+                        old_value: location.is_dark,
+                        new_value: new_is_dark,
+                    });
+                }
+
+                // Apply changes
+                location.name = new_name.clone();
+                location.description = new_description;
+                location.is_dark = new_is_dark;
 
                 state.mark_dirty();
                 notification_manager.add_success(
-                    format!("Updated location '{}'", name),
+                    format!("Updated location '{}'", new_name),
                     current_time
                 );
                 modal_state.close();
@@ -2238,5 +2275,712 @@ pub fn update_location_editor_with_text_input(
                 modal_state.description = text_input_state.current_value.clone();
             }
         }
+    }
+}
+
+// ============================================================================
+// UNDO/REDO SYSTEM
+// ============================================================================
+
+/// Represents a single change that can be undone/redone
+#[derive(Clone, Debug)]
+pub enum ChangeRecord {
+    // Location changes
+    LocationNameChanged {
+        location_id: u8,
+        old_value: String,
+        new_value: String,
+    },
+    LocationDescriptionChanged {
+        location_id: u8,
+        old_value: String,
+        new_value: String,
+    },
+    LocationDarkChanged {
+        location_id: u8,
+        old_value: bool,
+        new_value: bool,
+    },
+    LocationAdded {
+        location: crate::daad::types::Location,
+    },
+    LocationDeleted {
+        location: crate::daad::types::Location,
+        index: usize,
+    },
+
+    // Connection changes
+    ConnectionAdded {
+        location_id: u8,
+        connection: crate::daad::types::Connection,
+    },
+    ConnectionRemoved {
+        location_id: u8,
+        index: usize,
+        connection: crate::daad::types::Connection,
+    },
+    ConnectionModified {
+        location_id: u8,
+        index: usize,
+        old_connection: crate::daad::types::Connection,
+        new_connection: crate::daad::types::Connection,
+    },
+
+    // Object changes
+    ObjectNameChanged {
+        object_id: u8,
+        old_value: String,
+        new_value: String,
+    },
+    ObjectAdjectiveChanged {
+        object_id: u8,
+        old_value: String,
+        new_value: String,
+    },
+    ObjectNounChanged {
+        object_id: u8,
+        old_value: String,
+        new_value: String,
+    },
+    ObjectDescriptionChanged {
+        object_id: u8,
+        old_value: String,
+        new_value: String,
+    },
+    ObjectWeightChanged {
+        object_id: u8,
+        old_value: u8,
+        new_value: u8,
+    },
+    ObjectFlagsChanged {
+        object_id: u8,
+        old_container: bool,
+        new_container: bool,
+        old_wearable: bool,
+        new_wearable: bool,
+        old_takeable: bool,
+        new_takeable: bool,
+    },
+    ObjectAdded {
+        object: crate::daad::types::Object,
+    },
+    ObjectDeleted {
+        object: crate::daad::types::Object,
+        index: usize,
+    },
+
+    // Rule changes
+    RuleAdded {
+        rule: crate::daad::types::Rule,
+    },
+    RuleDeleted {
+        rule: crate::daad::types::Rule,
+        index: usize,
+    },
+    RuleNameChanged {
+        rule_id: usize,
+        old_value: String,
+        new_value: String,
+    },
+    RuleEnabledChanged {
+        rule_id: usize,
+        old_value: bool,
+        new_value: bool,
+    },
+
+    // Flag changes
+    FlagAdded {
+        flag: crate::daad::types::Flag,
+    },
+    FlagDeleted {
+        flag: crate::daad::types::Flag,
+        index: usize,
+    },
+    FlagNameChanged {
+        flag_id: u8,
+        old_value: String,
+        new_value: String,
+    },
+    FlagDescriptionChanged {
+        flag_id: u8,
+        old_value: String,
+        new_value: String,
+    },
+
+    // Message changes
+    MessageAdded {
+        message: String,
+    },
+    MessageDeleted {
+        message: String,
+        index: usize,
+    },
+    MessageChanged {
+        index: usize,
+        old_value: String,
+        new_value: String,
+    },
+
+    // Vocabulary changes
+    VocabularyAdded {
+        word: String,
+        word_type: crate::daad::game::VocabType,
+    },
+    VocabularyRemoved {
+        word: String,
+        word_type: crate::daad::game::VocabType,
+        index: usize,
+    },
+}
+
+impl ChangeRecord {
+    /// Apply this change to the game state
+    pub fn apply(&self, game: &mut crate::daad::game::DaadGame) {
+        match self {
+            // Location changes
+            ChangeRecord::LocationNameChanged { location_id, new_value, .. } => {
+                if let Some(location) = game.locations.iter_mut().find(|l| l.id == *location_id) {
+                    location.name = new_value.clone();
+                }
+            }
+            ChangeRecord::LocationDescriptionChanged { location_id, new_value, .. } => {
+                if let Some(location) = game.locations.iter_mut().find(|l| l.id == *location_id) {
+                    location.description = new_value.clone();
+                }
+            }
+            ChangeRecord::LocationDarkChanged { location_id, new_value, .. } => {
+                if let Some(location) = game.locations.iter_mut().find(|l| l.id == *location_id) {
+                    location.is_dark = *new_value;
+                }
+            }
+            ChangeRecord::LocationAdded { location } => {
+                game.locations.push(location.clone());
+            }
+            ChangeRecord::LocationDeleted { index, .. } => {
+                if *index < game.locations.len() {
+                    game.locations.remove(*index);
+                }
+            }
+
+            // Connection changes
+            ChangeRecord::ConnectionAdded { location_id, connection } => {
+                if let Some(location) = game.locations.iter_mut().find(|l| l.id == *location_id) {
+                    location.connections.push(connection.clone());
+                }
+            }
+            ChangeRecord::ConnectionRemoved { location_id, index, .. } => {
+                if let Some(location) = game.locations.iter_mut().find(|l| l.id == *location_id) {
+                    if *index < location.connections.len() {
+                        location.connections.remove(*index);
+                    }
+                }
+            }
+            ChangeRecord::ConnectionModified { location_id, index, new_connection, .. } => {
+                if let Some(location) = game.locations.iter_mut().find(|l| l.id == *location_id) {
+                    if *index < location.connections.len() {
+                        location.connections[*index] = new_connection.clone();
+                    }
+                }
+            }
+
+            // Object changes
+            ChangeRecord::ObjectNameChanged { object_id, new_value, .. } => {
+                if let Some(object) = game.objects.iter_mut().find(|o| o.id == *object_id) {
+                    object.name = new_value.clone();
+                }
+            }
+            ChangeRecord::ObjectAdjectiveChanged { object_id, new_value, .. } => {
+                if let Some(object) = game.objects.iter_mut().find(|o| o.id == *object_id) {
+                    object.adjective = new_value.clone();
+                }
+            }
+            ChangeRecord::ObjectNounChanged { object_id, new_value, .. } => {
+                if let Some(object) = game.objects.iter_mut().find(|o| o.id == *object_id) {
+                    object.noun = new_value.clone();
+                }
+            }
+            ChangeRecord::ObjectDescriptionChanged { object_id, new_value, .. } => {
+                if let Some(object) = game.objects.iter_mut().find(|o| o.id == *object_id) {
+                    object.description = new_value.clone();
+                }
+            }
+            ChangeRecord::ObjectWeightChanged { object_id, new_value, .. } => {
+                if let Some(object) = game.objects.iter_mut().find(|o| o.id == *object_id) {
+                    object.weight = *new_value;
+                }
+            }
+            ChangeRecord::ObjectFlagsChanged { object_id, new_container, new_wearable, new_takeable, .. } => {
+                if let Some(object) = game.objects.iter_mut().find(|o| o.id == *object_id) {
+                    object.is_container = *new_container;
+                    object.is_wearable = *new_wearable;
+                    object.is_takeable = *new_takeable;
+                }
+            }
+            ChangeRecord::ObjectAdded { object } => {
+                game.objects.push(object.clone());
+            }
+            ChangeRecord::ObjectDeleted { index, .. } => {
+                if *index < game.objects.len() {
+                    game.objects.remove(*index);
+                }
+            }
+
+            // Rule changes
+            ChangeRecord::RuleAdded { rule } => {
+                game.rules.push(rule.clone());
+            }
+            ChangeRecord::RuleDeleted { index, .. } => {
+                if *index < game.rules.len() {
+                    game.rules.remove(*index);
+                }
+            }
+            ChangeRecord::RuleNameChanged { rule_id, new_value, .. } => {
+                if *rule_id < game.rules.len() {
+                    game.rules[*rule_id].name = new_value.clone();
+                }
+            }
+            ChangeRecord::RuleEnabledChanged { rule_id, new_value, .. } => {
+                if *rule_id < game.rules.len() {
+                    game.rules[*rule_id].enabled = *new_value;
+                }
+            }
+
+            // Flag changes
+            ChangeRecord::FlagAdded { flag } => {
+                game.flags.push(flag.clone());
+            }
+            ChangeRecord::FlagDeleted { index, .. } => {
+                if *index < game.flags.len() {
+                    game.flags.remove(*index);
+                }
+            }
+            ChangeRecord::FlagNameChanged { flag_id, new_value, .. } => {
+                if let Some(flag) = game.flags.iter_mut().find(|f| f.id == *flag_id) {
+                    flag.name = new_value.clone();
+                }
+            }
+            ChangeRecord::FlagDescriptionChanged { flag_id, new_value, .. } => {
+                if let Some(flag) = game.flags.iter_mut().find(|f| f.id == *flag_id) {
+                    flag.description = new_value.clone();
+                }
+            }
+
+            // Message changes
+            ChangeRecord::MessageAdded { message } => {
+                game.messages.push(message.clone());
+            }
+            ChangeRecord::MessageDeleted { index, .. } => {
+                if *index < game.messages.len() {
+                    game.messages.remove(*index);
+                }
+            }
+            ChangeRecord::MessageChanged { index, new_value, .. } => {
+                if *index < game.messages.len() {
+                    game.messages[*index] = new_value.clone();
+                }
+            }
+
+            // Vocabulary changes
+            ChangeRecord::VocabularyAdded { word, word_type } => {
+                // Find next available ID
+                let next_id = game.vocabulary
+                    .iter()
+                    .map(|v| v.id)
+                    .max()
+                    .map_or(0, |max_id| max_id + 1);
+
+                game.vocabulary.push(crate::daad::game::VocabEntry {
+                    word: word.clone(),
+                    word_type: *word_type,
+                    id: next_id,
+                    translations: std::collections::HashMap::new(),
+                });
+            }
+            ChangeRecord::VocabularyRemoved { word, word_type, .. } => {
+                // Remove from vocabulary vector
+                if let Some(pos) = game.vocabulary.iter().position(|v| v.word == *word && v.word_type == *word_type) {
+                    game.vocabulary.remove(pos);
+                }
+            }
+        }
+    }
+
+    /// Reverse/undo this change
+    pub fn reverse(&self, game: &mut crate::daad::game::DaadGame) {
+        match self {
+            // Location changes
+            ChangeRecord::LocationNameChanged { location_id, old_value, .. } => {
+                if let Some(location) = game.locations.iter_mut().find(|l| l.id == *location_id) {
+                    location.name = old_value.clone();
+                }
+            }
+            ChangeRecord::LocationDescriptionChanged { location_id, old_value, .. } => {
+                if let Some(location) = game.locations.iter_mut().find(|l| l.id == *location_id) {
+                    location.description = old_value.clone();
+                }
+            }
+            ChangeRecord::LocationDarkChanged { location_id, old_value, .. } => {
+                if let Some(location) = game.locations.iter_mut().find(|l| l.id == *location_id) {
+                    location.is_dark = *old_value;
+                }
+            }
+            ChangeRecord::LocationAdded { location } => {
+                // Remove the added location
+                if let Some(pos) = game.locations.iter().position(|l| l.id == location.id) {
+                    game.locations.remove(pos);
+                }
+            }
+            ChangeRecord::LocationDeleted { location, index } => {
+                // Re-insert at original position
+                if *index <= game.locations.len() {
+                    game.locations.insert(*index, location.clone());
+                }
+            }
+
+            // Connection changes
+            ChangeRecord::ConnectionAdded { location_id, connection } => {
+                // Remove the added connection
+                if let Some(location) = game.locations.iter_mut().find(|l| l.id == *location_id) {
+                    if let Some(pos) = location.connections.iter().position(|c|
+                        c.direction == connection.direction && c.target_location == connection.target_location
+                    ) {
+                        location.connections.remove(pos);
+                    }
+                }
+            }
+            ChangeRecord::ConnectionRemoved { location_id, index, connection } => {
+                // Re-insert at original position
+                if let Some(location) = game.locations.iter_mut().find(|l| l.id == *location_id) {
+                    if *index <= location.connections.len() {
+                        location.connections.insert(*index, connection.clone());
+                    }
+                }
+            }
+            ChangeRecord::ConnectionModified { location_id, index, old_connection, .. } => {
+                if let Some(location) = game.locations.iter_mut().find(|l| l.id == *location_id) {
+                    if *index < location.connections.len() {
+                        location.connections[*index] = old_connection.clone();
+                    }
+                }
+            }
+
+            // Object changes
+            ChangeRecord::ObjectNameChanged { object_id, old_value, .. } => {
+                if let Some(object) = game.objects.iter_mut().find(|o| o.id == *object_id) {
+                    object.name = old_value.clone();
+                }
+            }
+            ChangeRecord::ObjectAdjectiveChanged { object_id, old_value, .. } => {
+                if let Some(object) = game.objects.iter_mut().find(|o| o.id == *object_id) {
+                    object.adjective = old_value.clone();
+                }
+            }
+            ChangeRecord::ObjectNounChanged { object_id, old_value, .. } => {
+                if let Some(object) = game.objects.iter_mut().find(|o| o.id == *object_id) {
+                    object.noun = old_value.clone();
+                }
+            }
+            ChangeRecord::ObjectDescriptionChanged { object_id, old_value, .. } => {
+                if let Some(object) = game.objects.iter_mut().find(|o| o.id == *object_id) {
+                    object.description = old_value.clone();
+                }
+            }
+            ChangeRecord::ObjectWeightChanged { object_id, old_value, .. } => {
+                if let Some(object) = game.objects.iter_mut().find(|o| o.id == *object_id) {
+                    object.weight = *old_value;
+                }
+            }
+            ChangeRecord::ObjectFlagsChanged { object_id, old_container, old_wearable, old_takeable, .. } => {
+                if let Some(object) = game.objects.iter_mut().find(|o| o.id == *object_id) {
+                    object.is_container = *old_container;
+                    object.is_wearable = *old_wearable;
+                    object.is_takeable = *old_takeable;
+                }
+            }
+            ChangeRecord::ObjectAdded { object } => {
+                if let Some(pos) = game.objects.iter().position(|o| o.id == object.id) {
+                    game.objects.remove(pos);
+                }
+            }
+            ChangeRecord::ObjectDeleted { object, index } => {
+                if *index <= game.objects.len() {
+                    game.objects.insert(*index, object.clone());
+                }
+            }
+
+            // Rule changes
+            ChangeRecord::RuleAdded { rule } => {
+                if let Some(pos) = game.rules.iter().position(|r| r.id == rule.id) {
+                    game.rules.remove(pos);
+                }
+            }
+            ChangeRecord::RuleDeleted { rule, index } => {
+                if *index <= game.rules.len() {
+                    game.rules.insert(*index, rule.clone());
+                }
+            }
+            ChangeRecord::RuleNameChanged { rule_id, old_value, .. } => {
+                if *rule_id < game.rules.len() {
+                    game.rules[*rule_id].name = old_value.clone();
+                }
+            }
+            ChangeRecord::RuleEnabledChanged { rule_id, old_value, .. } => {
+                if *rule_id < game.rules.len() {
+                    game.rules[*rule_id].enabled = *old_value;
+                }
+            }
+
+            // Flag changes
+            ChangeRecord::FlagAdded { flag } => {
+                if let Some(pos) = game.flags.iter().position(|f| f.id == flag.id) {
+                    game.flags.remove(pos);
+                }
+            }
+            ChangeRecord::FlagDeleted { flag, index } => {
+                if *index <= game.flags.len() {
+                    game.flags.insert(*index, flag.clone());
+                }
+            }
+            ChangeRecord::FlagNameChanged { flag_id, old_value, .. } => {
+                if let Some(flag) = game.flags.iter_mut().find(|f| f.id == *flag_id) {
+                    flag.name = old_value.clone();
+                }
+            }
+            ChangeRecord::FlagDescriptionChanged { flag_id, old_value, .. } => {
+                if let Some(flag) = game.flags.iter_mut().find(|f| f.id == *flag_id) {
+                    flag.description = old_value.clone();
+                }
+            }
+
+            // Message changes
+            ChangeRecord::MessageAdded { message } => {
+                if let Some(pos) = game.messages.iter().position(|m| m == message) {
+                    game.messages.remove(pos);
+                }
+            }
+            ChangeRecord::MessageDeleted { message, index } => {
+                if *index <= game.messages.len() {
+                    game.messages.insert(*index, message.clone());
+                }
+            }
+            ChangeRecord::MessageChanged { index, old_value, .. } => {
+                if *index < game.messages.len() {
+                    game.messages[*index] = old_value.clone();
+                }
+            }
+
+            // Vocabulary changes
+            ChangeRecord::VocabularyAdded { word, word_type } => {
+                // Remove the added vocabulary entry
+                if let Some(pos) = game.vocabulary.iter().position(|v| v.word == *word && v.word_type == *word_type) {
+                    game.vocabulary.remove(pos);
+                }
+            }
+            ChangeRecord::VocabularyRemoved { word, word_type, index } => {
+                // Re-insert at original position
+                if *index <= game.vocabulary.len() {
+                    // Find what ID it should have (or use the index as the ID)
+                    let entry_id = game.vocabulary
+                        .iter()
+                        .map(|v| v.id)
+                        .max()
+                        .map_or(0, |max_id| max_id + 1);
+
+                    game.vocabulary.insert(*index, crate::daad::game::VocabEntry {
+                        word: word.clone(),
+                        word_type: *word_type,
+                        id: entry_id,
+                        translations: std::collections::HashMap::new(),
+                    });
+                }
+            }
+        }
+    }
+
+    /// Get a human-readable description of this change
+    pub fn description(&self) -> String {
+        match self {
+            ChangeRecord::LocationNameChanged { location_id, new_value, .. } => {
+                format!("Changed location #{} name to '{}'", location_id, new_value)
+            }
+            ChangeRecord::LocationDescriptionChanged { location_id, .. } => {
+                format!("Changed location #{} description", location_id)
+            }
+            ChangeRecord::LocationDarkChanged { location_id, new_value, .. } => {
+                format!("Set location #{} dark: {}", location_id, new_value)
+            }
+            ChangeRecord::LocationAdded { location } => {
+                format!("Added location '{}'", location.name)
+            }
+            ChangeRecord::LocationDeleted { location, .. } => {
+                format!("Deleted location '{}'", location.name)
+            }
+            ChangeRecord::ConnectionAdded { location_id, connection } => {
+                format!("Added {:?} connection from location #{}", connection.direction, location_id)
+            }
+            ChangeRecord::ConnectionRemoved { location_id, connection, .. } => {
+                format!("Removed {:?} connection from location #{}", connection.direction, location_id)
+            }
+            ChangeRecord::ConnectionModified { location_id, new_connection, .. } => {
+                format!("Modified {:?} connection from location #{}", new_connection.direction, location_id)
+            }
+            ChangeRecord::ObjectNameChanged { object_id, new_value, .. } => {
+                format!("Changed object #{} name to '{}'", object_id, new_value)
+            }
+            ChangeRecord::ObjectAdjectiveChanged { object_id, new_value, .. } => {
+                format!("Changed object #{} adjective to '{}'", object_id, new_value)
+            }
+            ChangeRecord::ObjectNounChanged { object_id, new_value, .. } => {
+                format!("Changed object #{} noun to '{}'", object_id, new_value)
+            }
+            ChangeRecord::ObjectDescriptionChanged { object_id, .. } => {
+                format!("Changed object #{} description", object_id)
+            }
+            ChangeRecord::ObjectWeightChanged { object_id, new_value, .. } => {
+                format!("Changed object #{} weight to {}", object_id, new_value)
+            }
+            ChangeRecord::ObjectFlagsChanged { object_id, .. } => {
+                format!("Changed object #{} flags", object_id)
+            }
+            ChangeRecord::ObjectAdded { object } => {
+                format!("Added object '{}'", object.name)
+            }
+            ChangeRecord::ObjectDeleted { object, .. } => {
+                format!("Deleted object '{}'", object.name)
+            }
+            ChangeRecord::RuleAdded { rule } => {
+                format!("Added rule '{}'", rule.name)
+            }
+            ChangeRecord::RuleDeleted { rule, .. } => {
+                format!("Deleted rule '{}'", rule.name)
+            }
+            ChangeRecord::RuleNameChanged { rule_id, new_value, .. } => {
+                format!("Changed rule #{} name to '{}'", rule_id, new_value)
+            }
+            ChangeRecord::RuleEnabledChanged { rule_id, new_value, .. } => {
+                format!("Set rule #{} enabled: {}", rule_id, new_value)
+            }
+            ChangeRecord::FlagAdded { flag } => {
+                format!("Added flag '{}'", flag.name)
+            }
+            ChangeRecord::FlagDeleted { flag, .. } => {
+                format!("Deleted flag '{}'", flag.name)
+            }
+            ChangeRecord::FlagNameChanged { flag_id, new_value, .. } => {
+                format!("Changed flag #{} name to '{}'", flag_id, new_value)
+            }
+            ChangeRecord::FlagDescriptionChanged { flag_id, .. } => {
+                format!("Changed flag #{} description", flag_id)
+            }
+            ChangeRecord::MessageAdded { message } => {
+                let preview = if message.len() > 30 {
+                    format!("{}...", &message[..30])
+                } else {
+                    message.clone()
+                };
+                format!("Added message '{}'", preview)
+            }
+            ChangeRecord::MessageDeleted { message, .. } => {
+                let preview = if message.len() > 30 {
+                    format!("{}...", &message[..30])
+                } else {
+                    message.clone()
+                };
+                format!("Deleted message '{}'", preview)
+            }
+            ChangeRecord::MessageChanged { index, .. } => {
+                format!("Changed message #{}", index)
+            }
+            ChangeRecord::VocabularyAdded { word, word_type } => {
+                format!("Added {:?} '{}'", word_type, word)
+            }
+            ChangeRecord::VocabularyRemoved { word, word_type, .. } => {
+                format!("Removed {:?} '{}'", word_type, word)
+            }
+        }
+    }
+}
+
+/// Undo/Redo manager resource
+#[derive(Resource)]
+pub struct UndoRedoManager {
+    undo_stack: Vec<ChangeRecord>,
+    redo_stack: Vec<ChangeRecord>,
+    max_history: usize,
+}
+
+impl Default for UndoRedoManager {
+    fn default() -> Self {
+        Self {
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
+            max_history: 100, // Keep last 100 changes
+        }
+    }
+}
+
+impl UndoRedoManager {
+    /// Record a new change
+    pub fn push_change(&mut self, change: ChangeRecord) {
+        // Clear redo stack when new change is made
+        self.redo_stack.clear();
+
+        // Add to undo stack
+        self.undo_stack.push(change);
+
+        // Limit history size
+        if self.undo_stack.len() > self.max_history {
+            self.undo_stack.remove(0);
+        }
+    }
+
+    /// Check if undo is available
+    pub fn can_undo(&self) -> bool {
+        !self.undo_stack.is_empty()
+    }
+
+    /// Check if redo is available
+    pub fn can_redo(&self) -> bool {
+        !self.redo_stack.is_empty()
+    }
+
+    /// Undo the last change
+    pub fn undo(&mut self, game: &mut crate::daad::game::DaadGame) -> Option<String> {
+        if let Some(change) = self.undo_stack.pop() {
+            let description = change.description();
+            change.reverse(game);
+            self.redo_stack.push(change);
+            Some(description)
+        } else {
+            None
+        }
+    }
+
+    /// Redo the last undone change
+    pub fn redo(&mut self, game: &mut crate::daad::game::DaadGame) -> Option<String> {
+        if let Some(change) = self.redo_stack.pop() {
+            let description = change.description();
+            change.apply(game);
+            self.undo_stack.push(change);
+            Some(description)
+        } else {
+            None
+        }
+    }
+
+    /// Get the description of the next undo operation
+    pub fn undo_description(&self) -> Option<String> {
+        self.undo_stack.last().map(|c| c.description())
+    }
+
+    /// Get the description of the next redo operation
+    pub fn redo_description(&self) -> Option<String> {
+        self.redo_stack.last().map(|c| c.description())
+    }
+
+    /// Clear all history
+    pub fn clear(&mut self) {
+        self.undo_stack.clear();
+        self.redo_stack.clear();
     }
 }

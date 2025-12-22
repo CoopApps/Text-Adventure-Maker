@@ -1005,6 +1005,7 @@ pub fn handle_add_custom_word_button(
     mut state: ResMut<BuilderState>,
     mut search_state: ResMut<VocabularySearchState>,
     mut notification_manager: ResMut<super::components::NotificationManager>,
+    mut undo_manager: ResMut<super::components::UndoRedoManager>,
     time: Res<Time>,
     mut interaction_query: Query<
         &Interaction,
@@ -1059,6 +1060,12 @@ pub fn handle_add_custom_word_button(
                 word_type: search_state.custom_word_type,
                 id: next_id,
                 translations: std::collections::HashMap::new(),
+            });
+
+            // Record change for undo/redo
+            undo_manager.push_change(super::components::ChangeRecord::VocabularyAdded {
+                word: word.clone(),
+                word_type: search_state.custom_word_type,
             });
 
             state.mark_dirty();
