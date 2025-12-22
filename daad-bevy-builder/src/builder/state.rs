@@ -47,6 +47,7 @@ pub enum Panel {
     Flags,         // Flag manager
     Vocabulary,    // Vocabulary/words editor
     Graphics,      // Graphics/pictures manager
+    Sounds,        // Sound & music manager
     Analytics,     // Game statistics and analysis
     Messages,      // Message editor
     Preview,       // Test the game
@@ -63,6 +64,7 @@ impl Panel {
             Panel::Flags => "Flags",
             Panel::Vocabulary => "Vocabulary",
             Panel::Graphics => "Graphics",
+            Panel::Sounds => "Sounds",
             Panel::Analytics => "Analytics",
             Panel::Messages => "Messages",
             Panel::Preview => "Preview",
@@ -79,6 +81,7 @@ impl Panel {
             Panel::Flags => "🚩",
             Panel::Vocabulary => "📖",
             Panel::Graphics => "🖼️",
+            Panel::Sounds => "🔊",
             Panel::Analytics => "📊",
             Panel::Messages => "💬",
             Panel::Preview => "▶️",

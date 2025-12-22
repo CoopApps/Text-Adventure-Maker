@@ -85,6 +85,12 @@ fn main() {
             builder::ui::game_info_ui::handle_edit_author_button,
             builder::ui::game_info_ui::handle_edit_version_button,
         ))
+        .add_systems(Update, (
+            // Sound systems
+            builder::ui::sound_ui::handle_add_sound_button,
+            builder::ui::sound_ui::handle_remove_sound_button,
+            builder::ui::sound_ui::handle_edit_sound_button,
+        ))
         .run();
 }
 

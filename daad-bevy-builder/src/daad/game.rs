@@ -14,6 +14,7 @@ pub struct DaadGame {
     pub flags: Vec<Flag>,
     pub messages: Vec<String>,
     pub vocabulary: Vec<VocabEntry>,
+    pub sounds: Vec<Sound>,
 
     // MALUVA extension support
     pub maluva_enabled: bool,
@@ -107,6 +108,36 @@ impl VocabType {
     }
 }
 
+/// Sound effect or music resource
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Sound {
+    pub id: u8,
+    pub name: String,
+    pub description: String,
+    pub sound_type: SoundType,
+    /// File path for web/HTML export
+    pub web_file: Option<String>,
+    /// Platform-specific sound files (for retro platforms)
+    pub platform_files: std::collections::HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum SoundType {
+    Effect,  // Sound effect (short, played once)
+    Music,   // Music (long, can loop)
+    Beep,    // Simple beep/tone
+}
+
+impl SoundType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SoundType::Effect => "effect",
+            SoundType::Music => "music",
+            SoundType::Beep => "beep",
+        }
+    }
+}
+
 impl Default for DaadGame {
     fn default() -> Self {
         Self {
@@ -180,6 +211,7 @@ impl Default for DaadGame {
                     id: 0,
                 },
             ],
+            sounds: vec![],
             maluva_enabled: false,
             maluva_platform: MaluvaPlatform::None,
         }
