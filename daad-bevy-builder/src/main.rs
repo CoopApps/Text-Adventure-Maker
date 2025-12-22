@@ -17,6 +17,7 @@ fn main() {
             ..default()
         }))
         .init_resource::<builder::state::BuilderState>()
+        .init_resource::<builder::ui::playtest_ui::PlaytestState>()
         .add_systems(Startup, setup)
         .add_systems(Update, (
             builder::ui::main_menu::render_menu,
@@ -97,6 +98,13 @@ fn main() {
             builder::ui::graphics_ui::handle_remove_picture_button,
             builder::ui::graphics_ui::handle_edit_picture_button,
             builder::ui::graphics_ui::handle_set_location_binding_button,
+        ))
+        .add_systems(Update, (
+            // Playtest systems (new interpreter-based testing)
+            builder::ui::playtest_ui::handle_start_playtest_button,
+            builder::ui::playtest_ui::handle_reset_playtest_button,
+            builder::ui::playtest_ui::handle_quick_command_button,
+            builder::ui::playtest_ui::handle_keyboard_input,
         ))
         .run();
 }

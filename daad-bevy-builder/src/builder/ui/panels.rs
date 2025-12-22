@@ -5,11 +5,13 @@ use super::game_info_ui::render_game_info_panel;
 use super::analytics_ui::render_analytics_panel;
 use super::sound_ui::render_sound_panel;
 use super::graphics_ui::render_graphics_panel;
+use super::playtest_ui::{render_playtest_panel, PlaytestState};
 
 /// Render the active panel content
 pub fn render_active_panel(
     mut commands: Commands,
     state: Res<BuilderState>,
+    playtest: Res<PlaytestState>,
     query: Query<Entity, With<PanelContent>>,
 ) {
     // Clean up old panel content
@@ -50,7 +52,7 @@ pub fn render_active_panel(
                 Panel::Sounds => render_sound_panel(parent, &state),
                 Panel::Analytics => render_analytics_panel(parent, &state),
                 Panel::Messages => render_messages_panel(parent, &state),
-                Panel::Preview => render_preview_panel(parent, &state),
+                Panel::Preview => render_playtest_panel(parent, &state, &playtest),
                 Panel::Export => render_export_panel(parent, &state),
             }
         });
@@ -287,35 +289,6 @@ fn render_messages_panel(parent: &mut ChildBuilder, state: &BuilderState) {
         TextStyle {
             font_size: 16.0,
             color: Color::rgb(0.4, 0.8, 0.4),
-            ..default()
-        },
-    ));
-}
-
-fn render_preview_panel(parent: &mut ChildBuilder, _state: &BuilderState) {
-    parent.spawn(TextBundle::from_section(
-        "▶️ Game Preview",
-        TextStyle {
-            font_size: 24.0,
-            color: Color::WHITE,
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        "\nLive game preview will appear here.",
-        TextStyle {
-            font_size: 18.0,
-            color: Color::rgb(0.7, 0.7, 0.7),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        "\nPress F5 to toggle preview mode.",
-        TextStyle {
-            font_size: 14.0,
-            color: Color::rgb(0.5, 0.5, 0.5),
             ..default()
         },
     ));
