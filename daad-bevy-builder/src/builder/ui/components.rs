@@ -1377,3 +1377,104 @@ pub fn handle_cancel_connection_button(
         }
     }
 }
+
+/// Tooltip component - attach to buttons to show helpful text on hover
+#[derive(Component, Clone)]
+pub struct Tooltip {
+    pub text: String,
+}
+
+impl Tooltip {
+    pub fn new(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+        }
+    }
+}
+
+/// Tooltip display state resource
+#[derive(Resource, Default)]
+pub struct TooltipState {
+    pub current_tooltip: Option<String>,
+    pub cursor_position: Vec2,
+}
+
+/// Tooltip display marker
+#[derive(Component)]
+pub struct TooltipDisplay;
+
+/// Track tooltip hover state
+pub fn track_tooltip_hover(
+    mut tooltip_state: ResMut<TooltipState>,
+    tooltip_query: Query<(&Interaction, &Tooltip), Changed<Interaction>>,
+    windows: Query<&Window>,
+) {
+    // Get cursor position
+    if let Ok(window) = windows.get_single() {
+        if let Some(cursor_pos) = window.cursor_position() {
+            tooltip_state.cursor_position = cursor_pos;
+        }
+    }
+
+    // Check for hovered tooltips
+    for (interaction, tooltip) in tooltip_query.iter() {
+        match *interaction {
+            Interaction::Hovered => {
+                tooltip_state.current_tooltip = Some(tooltip.text.clone());
+                return;
+            }
+            Interaction::None => {
+                // Only clear if this was the active tooltip
+                if tooltip_state.current_tooltip.as_ref() == Some(&tooltip.text) {
+                    tooltip_state.current_tooltip = None;
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Render tooltip display
+pub fn render_tooltip_display(
+    mut commands: Commands,
+    tooltip_state: Res<TooltipState>,
+    query: Query<Entity, With<TooltipDisplay>>,
+) {
+    // Clean up old tooltips
+    for entity in query.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+
+    // Render new tooltip if needed
+    if let Some(tooltip_text) = &tooltip_state.current_tooltip {
+        commands
+            .spawn((
+                NodeBundle {
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        left: Val::Px(tooltip_state.cursor_position.x + 15.0),
+                        top: Val::Px(tooltip_state.cursor_position.y + 15.0),
+                        padding: UiRect::all(Val::Px(8.0)),
+                        border: UiRect::all(Val::Px(1.0)),
+                        max_width: Val::Px(250.0),
+                        ..default()
+                    },
+                    background_color: Color::rgba(0.1, 0.1, 0.15, 0.95).into(),
+                    border_color: Color::rgb(0.6, 0.6, 0.7).into(),
+                    z_index: ZIndex::Global(200),
+                    ..default()
+                },
+                TooltipDisplay,
+            ))
+            .with_children(|parent| {
+                parent.spawn(TextBundle::from_section(
+                    tooltip_text,
+                    TextStyle {
+                        font_size: 13.0,
+                        color: Color::rgb(0.9, 0.9, 1.0),
+                        ..default()
+                    },
+                ));
+            });
+    }
+}

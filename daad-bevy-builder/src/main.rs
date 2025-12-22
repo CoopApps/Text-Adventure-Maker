@@ -24,6 +24,7 @@ fn main() {
         .init_resource::<builder::ui::components::TextInputModalState>()
         .init_resource::<builder::ui::components::ConfirmationModalState>()
         .init_resource::<builder::ui::components::ConnectionEditorModalState>()
+        .init_resource::<builder::ui::components::TooltipState>()
         .init_resource::<builder::ui::vocabulary_ui::VocabularySearchState>()
         .init_resource::<builder::debug::DebugState>()
         .add_systems(Startup, setup)
@@ -38,6 +39,8 @@ fn main() {
             button_hover_system,
             render_help_overlay,
             render_status_bar,
+            builder::ui::components::track_tooltip_hover,
+            builder::ui::components::render_tooltip_display,
         ))
         .add_systems(Update, (
             // Location editor systems
