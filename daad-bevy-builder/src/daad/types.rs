@@ -321,6 +321,32 @@ impl Action {
             ActionType::AddScore { points } => {
                 format!("Add {} points to score", points)
             }
+
+            // MALUVA Extension Actions
+            ActionType::XPicture { picture_id } => {
+                format!("MALUVA: Display picture {}", picture_id)
+            }
+            ActionType::XSave => {
+                "MALUVA: Save with graphics".to_string()
+            }
+            ActionType::XLoad => {
+                "MALUVA: Load saved game".to_string()
+            }
+            ActionType::XPart { effect_id } => {
+                format!("MALUVA: Particle effect {}", effect_id)
+            }
+            ActionType::XMessage { message_id } => {
+                format!("MALUVA: Extended message {}", message_id)
+            }
+            ActionType::XTo { location_id } => {
+                format!("MALUVA: Go to location {} with effects", location_id)
+            }
+            ActionType::XDone => {
+                "MALUVA: End turn with effects".to_string()
+            }
+            ActionType::XEnd => {
+                "MALUVA: End game with effects".to_string()
+            }
         }
     }
 }
@@ -355,6 +381,17 @@ pub enum ActionType {
 
     // Score
     AddScore { points: u16 },
+
+    // MALUVA Extension Actions (Module 36)
+    // These require #extern "MALUVA.BIN" directive in header
+    XPicture { picture_id: u8 },        // Display extended graphics
+    XSave,                               // Extended save with graphics
+    XLoad,                               // Extended load
+    XPart { effect_id: u8 },            // Particle effects
+    XMessage { message_id: u8 },        // Extended messages with graphics
+    XTo { location_id: u8 },            // Extended location change with effects
+    XDone,                               // Extended done with effects
+    XEnd,                                // Extended end with effects
 }
 
 /// Flag (game variable)

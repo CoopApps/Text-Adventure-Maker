@@ -1,5 +1,60 @@
 use super::{game::*, types::*};
 
+/// Validation error types for DAAD code generation
+#[derive(Debug, Clone)]
+pub enum ValidationError {
+    InvalidLocationId { location_id: u8, context: String },
+    InvalidObjectId { object_id: u8, context: String },
+    InvalidMessageId { message_id: u8, context: String },
+    InvalidFlagId { flag_id: u8, context: String },
+    VocabularyWordTooLong { word: String, length: usize, max_length: usize },
+    MissingLocation { location_id: u8 },
+    MissingObject { object_id: u8 },
+    DuplicateLocationId { location_id: u8 },
+    DuplicateObjectId { object_id: u8 },
+    EmptyGame { reason: String },
+}
+
+impl std::fmt::Display for ValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ValidationError::InvalidLocationId { location_id, context } => {
+                write!(f, "Invalid location ID {} in {}", location_id, context)
+            }
+            ValidationError::InvalidObjectId { object_id, context } => {
+                write!(f, "Invalid object ID {} in {}", object_id, context)
+            }
+            ValidationError::InvalidMessageId { message_id, context } => {
+                write!(f, "Invalid message ID {} in {}", message_id, context)
+            }
+            ValidationError::InvalidFlagId { flag_id, context } => {
+                write!(f, "Invalid flag ID {} in {}", flag_id, context)
+            }
+            ValidationError::VocabularyWordTooLong { word, length, max_length } => {
+                write!(f, "Vocabulary word '{}' is {} characters (max {})", word, length, max_length)
+            }
+            ValidationError::MissingLocation { location_id } => {
+                write!(f, "Referenced location {} does not exist", location_id)
+            }
+            ValidationError::MissingObject { object_id } => {
+                write!(f, "Referenced object {} does not exist", object_id)
+            }
+            ValidationError::DuplicateLocationId { location_id } => {
+                write!(f, "Duplicate location ID: {}", location_id)
+            }
+            ValidationError::DuplicateObjectId { object_id } => {
+                write!(f, "Duplicate object ID: {}", object_id)
+            }
+            ValidationError::EmptyGame { reason } => {
+                write!(f, "Game validation failed: {}", reason)
+            }
+        }
+    }
+}
+
+/// Validation result type
+pub type ValidationResult = Result<(), Vec<ValidationError>>;
+
 /// DAAD Code Generator
 /// Converts visual game data into DRC-compatible DAAD source code (.SCE format)
 pub struct DaadCodeGenerator;
@@ -87,7 +142,7 @@ impl DaadCodeGenerator {
     }
 
     fn generate_header(game: &DaadGame) -> String {
-        format!(
+        let mut header = format!(
             "; ========================================\n\
              ; {}\n\
              ; by {}\n\
@@ -130,9 +185,26 @@ impl DaadCodeGenerator {
              #define fInkeyKey2          61\n\
              #define fScreenMode         62\n\
              #define fCurrentWindow      63\n\
-             \n\n",
+             \n",
             game.title, game.author, game.version
-        )
+        );
+
+        // Add MALUVA #extern directive if enabled
+        if game.maluva_enabled {
+            let binary_name = game.maluva_platform.binary_name();
+            if !binary_name.is_empty() {
+                header.push_str(&format!(
+                    "; MALUVA Extension - {}\n\
+                     #extern \"{}\"\n\
+                     \n",
+                    game.maluva_platform.display_name(),
+                    binary_name
+                ));
+            }
+        }
+
+        header.push_str("\n");
+        header
     }
 
     fn generate_control_section() -> String {
@@ -680,6 +752,215 @@ impl DaadCodeGenerator {
             ActionType::AddScore { points } => {
                 format!("PLUS fScore {}", points)
             }
+
+            // MALUVA Extension Actions (Module 36)
+            ActionType::XPicture { picture_id } => {
+                format!("EXTERN 36 0 {}", picture_id)  // XPICTURE
+            }
+            ActionType::XSave => {
+                "EXTERN 36 1 0".to_string()  // XSAVE
+            }
+            ActionType::XLoad => {
+                "EXTERN 36 2 0".to_string()  // XLOAD
+            }
+            ActionType::XPart { effect_id } => {
+                format!("EXTERN 36 3 {}", effect_id)  // XPART
+            }
+            ActionType::XMessage { message_id } => {
+                format!("EXTERN 36 4 {}", message_id)  // XMESSAGE
+            }
+            ActionType::XTo { location_id } => {
+                format!("EXTERN 36 5 {}", location_id)  // XTO
+            }
+            ActionType::XDone => {
+                "EXTERN 36 6 0".to_string()  // XDONE
+            }
+            ActionType::XEnd => {
+                "EXTERN 36 7 0".to_string()  // XEND
+            }
+        }
+    }
+
+    /// Validate game data before code generation
+    /// Returns Ok(()) if validation passes, or Err with a list of all validation errors
+    pub fn validate(game: &DaadGame) -> ValidationResult {
+        let mut errors = Vec::new();
+
+        // Check for empty game
+        if game.locations.is_empty() {
+            errors.push(ValidationError::EmptyGame {
+                reason: "Game must have at least one location".to_string(),
+            });
+        }
+
+        // Validate vocabulary word lengths (DAAD limit: 5 characters)
+        for vocab in &game.vocabulary {
+            if vocab.word.len() > 5 {
+                errors.push(ValidationError::VocabularyWordTooLong {
+                    word: vocab.word.clone(),
+                    length: vocab.word.len(),
+                    max_length: 5,
+                });
+            }
+        }
+
+        // Check for duplicate location IDs
+        let mut seen_locations = std::collections::HashSet::new();
+        for location in &game.locations {
+            if !seen_locations.insert(location.id) {
+                errors.push(ValidationError::DuplicateLocationId {
+                    location_id: location.id,
+                });
+            }
+        }
+
+        // Check for duplicate object IDs
+        let mut seen_objects = std::collections::HashSet::new();
+        for object in &game.objects {
+            if !seen_objects.insert(object.id) {
+                errors.push(ValidationError::DuplicateObjectId {
+                    object_id: object.id,
+                });
+            }
+        }
+
+        // Validate connections reference existing locations
+        for location in &game.locations {
+            for connection in &location.connections {
+                if !game.locations.iter().any(|l| l.id == connection.target_location) {
+                    errors.push(ValidationError::MissingLocation {
+                        location_id: connection.target_location,
+                    });
+                }
+            }
+        }
+
+        // Validate object locations
+        for object in &game.objects {
+            match &object.location {
+                ObjectLocation::Location(loc_id) => {
+                    if !game.locations.iter().any(|l| l.id == *loc_id) {
+                        errors.push(ValidationError::InvalidLocationId {
+                            location_id: *loc_id,
+                            context: format!("object {} location", object.id),
+                        });
+                    }
+                }
+                _ => {} // CARRIED, WORN, LIMBO are always valid
+            }
+        }
+
+        // Validate rules
+        for rule in &game.rules {
+            // Check conditions
+            for condition in &rule.conditions {
+                match &condition.condition_type {
+                    ConditionType::PlayerAt { location_id } |
+                    ConditionType::PlayerNotAt { location_id } => {
+                        if !game.locations.iter().any(|l| l.id == *location_id) {
+                            errors.push(ValidationError::InvalidLocationId {
+                                location_id: *location_id,
+                                context: format!("rule {} condition", rule.id),
+                            });
+                        }
+                    }
+                    ConditionType::ObjectAt { object_id, location_id } => {
+                        if !game.objects.iter().any(|o| o.id == *object_id) {
+                            errors.push(ValidationError::InvalidObjectId {
+                                object_id: *object_id,
+                                context: format!("rule {} condition", rule.id),
+                            });
+                        }
+                        if !game.locations.iter().any(|l| l.id == *location_id) {
+                            errors.push(ValidationError::InvalidLocationId {
+                                location_id: *location_id,
+                                context: format!("rule {} condition (ObjectAt)", rule.id),
+                            });
+                        }
+                    }
+                    ConditionType::ObjectPresent { object_id } |
+                    ConditionType::ObjectCarried { object_id } |
+                    ConditionType::ObjectWorn { object_id } => {
+                        if !game.objects.iter().any(|o| o.id == *object_id) {
+                            errors.push(ValidationError::InvalidObjectId {
+                                object_id: *object_id,
+                                context: format!("rule {} condition", rule.id),
+                            });
+                        }
+                    }
+                    ConditionType::FlagEquals { flag_id, .. } |
+                    ConditionType::FlagGreaterThan { flag_id, .. } |
+                    ConditionType::FlagLessThan { flag_id, .. } |
+                    ConditionType::FlagZero { flag_id } => {
+                        if *flag_id > 255 {
+                            errors.push(ValidationError::InvalidFlagId {
+                                flag_id: *flag_id,
+                                context: format!("rule {} condition", rule.id),
+                            });
+                        }
+                    }
+                    _ => {} // Other conditions don't reference game entities
+                }
+            }
+
+            // Check actions
+            for action in &rule.actions {
+                match &action.action_type {
+                    ActionType::GoToLocation { location_id } |
+                    ActionType::XTo { location_id } => {
+                        if !game.locations.iter().any(|l| l.id == *location_id) {
+                            errors.push(ValidationError::InvalidLocationId {
+                                location_id: *location_id,
+                                context: format!("rule {} action", rule.id),
+                            });
+                        }
+                    }
+                    ActionType::GetObject { object_id } |
+                    ActionType::DropObject { object_id } |
+                    ActionType::WearObject { object_id } |
+                    ActionType::RemoveObject { object_id } => {
+                        if !game.objects.iter().any(|o| o.id == *object_id) {
+                            errors.push(ValidationError::InvalidObjectId {
+                                object_id: *object_id,
+                                context: format!("rule {} action", rule.id),
+                            });
+                        }
+                    }
+                    ActionType::MoveObject { object_id, to_location } => {
+                        if !game.objects.iter().any(|o| o.id == *object_id) {
+                            errors.push(ValidationError::InvalidObjectId {
+                                object_id: *object_id,
+                                context: format!("rule {} action", rule.id),
+                            });
+                        }
+                        if let ObjectLocation::Location(loc_id) = to_location {
+                            if !game.locations.iter().any(|l| l.id == *loc_id) {
+                                errors.push(ValidationError::InvalidLocationId {
+                                    location_id: *loc_id,
+                                    context: format!("rule {} action", rule.id),
+                                });
+                            }
+                        }
+                    }
+                    ActionType::SetFlag { flag_id, .. } |
+                    ActionType::IncrementFlag { flag_id } |
+                    ActionType::DecrementFlag { flag_id } => {
+                        if *flag_id > 255 {
+                            errors.push(ValidationError::InvalidFlagId {
+                                flag_id: *flag_id,
+                                context: format!("rule {} action", rule.id),
+                            });
+                        }
+                    }
+                    _ => {} // Other actions don't reference game entities
+                }
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
         }
     }
 }

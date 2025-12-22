@@ -14,6 +14,65 @@ pub struct DaadGame {
     pub flags: Vec<Flag>,
     pub messages: Vec<String>,
     pub vocabulary: Vec<VocabEntry>,
+
+    // MALUVA extension support
+    pub maluva_enabled: bool,
+    pub maluva_platform: MaluvaPlatform,
+}
+
+/// MALUVA target platforms
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum MaluvaPlatform {
+    None,           // No MALUVA
+    ZXSpectrum,     // ZX Spectrum (ESXDOS)
+    ZXSpectrumPlus3, // ZX Spectrum +3
+    ZXSpectrumNext, // ZX Spectrum Next
+    ZXUno,          // ZX-Uno
+    AmstradCPC,     // Amstrad CPC
+    Commodore64,    // Commodore 64
+    Plus4,          // Commodore Plus/4
+    MSX,            // MSX
+    Amiga,          // Commodore Amiga
+    PCW,            // Amstrad PCW
+    Dandanator,     // Dandanator cart
+}
+
+impl MaluvaPlatform {
+    /// Get the MALUVA binary filename for this platform
+    pub fn binary_name(&self) -> &'static str {
+        match self {
+            MaluvaPlatform::None => "",
+            MaluvaPlatform::ZXSpectrum => "MLV_ESX.BIN",
+            MaluvaPlatform::ZXSpectrumPlus3 => "MLV_P3.BIN",
+            MaluvaPlatform::ZXSpectrumNext => "MLV_NXT.BIN",
+            MaluvaPlatform::ZXUno => "MLV_UNO.BIN",
+            MaluvaPlatform::AmstradCPC => "MLV_CPC.BIN",
+            MaluvaPlatform::Commodore64 => "MLV_C64.BIN",
+            MaluvaPlatform::Plus4 => "MLV_CP4.BIN",
+            MaluvaPlatform::MSX => "MLV_MSX.BIN",
+            MaluvaPlatform::Amiga => "MLV_AMI.BIN",
+            MaluvaPlatform::PCW => "MLV_PCW.BIN",
+            MaluvaPlatform::Dandanator => "MLV_DAN.BIN",
+        }
+    }
+
+    /// Get platform display name
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            MaluvaPlatform::None => "None (DAAD only)",
+            MaluvaPlatform::ZXSpectrum => "ZX Spectrum (ESXDOS)",
+            MaluvaPlatform::ZXSpectrumPlus3 => "ZX Spectrum +3",
+            MaluvaPlatform::ZXSpectrumNext => "ZX Spectrum Next",
+            MaluvaPlatform::ZXUno => "ZX-Uno",
+            MaluvaPlatform::AmstradCPC => "Amstrad CPC",
+            MaluvaPlatform::Commodore64 => "Commodore 64",
+            MaluvaPlatform::Plus4 => "Commodore Plus/4",
+            MaluvaPlatform::MSX => "MSX",
+            MaluvaPlatform::Amiga => "Commodore Amiga",
+            MaluvaPlatform::PCW => "Amstrad PCW",
+            MaluvaPlatform::Dandanator => "Dandanator",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -97,6 +156,8 @@ impl Default for DaadGame {
                     id: 18,
                 },
             ],
+            maluva_enabled: false,
+            maluva_platform: MaluvaPlatform::None,
         }
     }
 }
