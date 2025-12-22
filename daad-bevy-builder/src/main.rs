@@ -45,11 +45,23 @@ fn main() {
             builder::editors::location_editor::render_connection_preview,
         ))
         .add_systems(Update, (
-            // Object editor systems
+            // Object editor systems (sidebar and basic actions)
             builder::editors::object_editor::render_object_sidebar,
+            builder::editors::object_editor::render_object_property_panel,
             builder::editors::object_editor::handle_add_object_button,
             builder::editors::object_editor::handle_edit_object_button,
             builder::editors::object_editor::handle_delete_object_button,
+        ))
+        .add_systems(Update, (
+            // Object property panel systems
+            builder::editors::object_editor::handle_edit_description_button,
+            builder::editors::object_editor::handle_decrease_weight_button,
+            builder::editors::object_editor::handle_increase_weight_button,
+            builder::editors::object_editor::handle_toggle_container_button,
+            builder::editors::object_editor::handle_toggle_wearable_button,
+            builder::editors::object_editor::handle_toggle_takeable_button,
+        ))
+        .add_systems(Update, (
             // Rule editor systems
             builder::editors::rule_editor::render_rule_sidebar,
             builder::editors::rule_editor::render_rule_detail_editor,
