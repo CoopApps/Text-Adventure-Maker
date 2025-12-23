@@ -1,16 +1,21 @@
 use bevy::prelude::*;
 use crate::builder::state::{BuilderState, Panel};
+use crate::builder::RootUiContainer;
 
 /// Render the toolbar with panel buttons
 pub fn render_toolbar(
     mut commands: Commands,
     state: Res<BuilderState>,
     query: Query<Entity, With<Toolbar>>,
+    root_query: Query<Entity, With<RootUiContainer>>,
 ) {
     // Clean up old toolbar
     for entity in query.iter() {
         commands.entity(entity).despawn_recursive();
     }
+
+    // Get root container
+    let Ok(root) = root_query.get_single() else { return };
 
     let panels = [
         Panel::GameInfo,
@@ -23,8 +28,8 @@ pub fn render_toolbar(
         Panel::Export,
     ];
 
-    // Create toolbar
-    commands
+    // Create toolbar as child of root
+    let toolbar = commands
         .spawn((
             NodeBundle {
                 style: Style {
@@ -103,7 +108,11 @@ pub fn render_toolbar(
                     ..default()
                 },
             ));
-        });
+        })
+        .id();
+
+    // Add toolbar as child of root container
+    commands.entity(root).add_child(toolbar);
 }
 
 /// Handle panel button clicks

@@ -1,19 +1,24 @@
 use bevy::prelude::*;
 use crate::builder::state::BuilderState;
+use crate::builder::RootUiContainer;
 
 /// Render the top menu bar
 pub fn render_menu(
     mut commands: Commands,
     state: Res<BuilderState>,
     query: Query<Entity, With<MenuBar>>,
+    root_query: Query<Entity, With<RootUiContainer>>,
 ) {
     // Clean up old menu
     for entity in query.iter() {
         commands.entity(entity).despawn_recursive();
     }
 
-    // Create new menu bar
-    commands
+    // Get root container
+    let Ok(root) = root_query.get_single() else { return };
+
+    // Create new menu bar as child of root
+    let menu = commands
         .spawn((
             NodeBundle {
                 style: Style {
@@ -72,7 +77,11 @@ pub fn render_menu(
                     },
                 ));
             }
-        });
+        })
+        .id();
+
+    // Add menu as child of root container
+    commands.entity(root).add_child(menu);
 }
 
 #[derive(Component)]

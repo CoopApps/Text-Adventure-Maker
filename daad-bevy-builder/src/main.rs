@@ -5,6 +5,8 @@ mod daad;
 mod viewer;
 mod preview;
 
+use builder::RootUiContainer;
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -74,7 +76,23 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
+    // Spawn camera for rendering
     commands.spawn(Camera2dBundle::default());
+
+    // Spawn root UI container that fills the screen
+    // All UI elements will be children of this container
+    commands.spawn((
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
+            ..default()
+        },
+        RootUiContainer,
+    ));
 }
 
 fn handle_keyboard_shortcuts(

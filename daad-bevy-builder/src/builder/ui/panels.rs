@@ -1,19 +1,24 @@
 use bevy::prelude::*;
 use crate::builder::state::{BuilderState, Panel};
+use crate::builder::RootUiContainer;
 
 /// Render the active panel content
 pub fn render_active_panel(
     mut commands: Commands,
     state: Res<BuilderState>,
     query: Query<Entity, With<PanelContent>>,
+    root_query: Query<Entity, With<RootUiContainer>>,
 ) {
     // Clean up old panel content
     for entity in query.iter() {
         commands.entity(entity).despawn_recursive();
     }
 
-    // Create panel content area
-    commands
+    // Get root container
+    let Ok(root) = root_query.get_single() else { return };
+
+    // Create panel content area as child of root
+    let panel = commands
         .spawn((
             NodeBundle {
                 style: Style {
@@ -22,7 +27,7 @@ pub fn render_active_panel(
                     } else {
                         Val::Percent(100.0)
                     },
-                    height: Val::Auto,
+                    flex_grow: 1.0,  // Fill remaining vertical space
                     flex_direction: FlexDirection::Column,
                     padding: UiRect::all(Val::Px(20.0)),
                     overflow: Overflow::clip_y(),
@@ -44,7 +49,11 @@ pub fn render_active_panel(
                 Panel::Preview => render_preview_panel(parent, &state),
                 Panel::Export => render_export_panel(parent, &state),
             }
-        });
+        })
+        .id();
+
+    // Add panel as child of root container
+    commands.entity(root).add_child(panel);
 }
 
 fn render_game_info_panel(parent: &mut ChildBuilder, state: &BuilderState) {
