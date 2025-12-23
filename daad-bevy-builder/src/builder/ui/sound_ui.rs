@@ -376,12 +376,16 @@ pub fn handle_remove_sound_button(
 
 /// Handle edit sound button click
 pub fn handle_edit_sound_button(
+    state: Res<BuilderState>,
+    mut sound_editor: ResMut<crate::builder::ui::components::SoundEditorModalState>,
     mut interaction_query: Query<(&Interaction, &EditSoundButton), Changed<Interaction>>,
 ) {
     for (interaction, button) in interaction_query.iter() {
         if *interaction == Interaction::Pressed {
-            info!("Edit Sound button clicked for ID {} - edit dialog coming soon!", button.sound_id);
-            // TODO: Open sound edit dialog with file upload
+            if let Some(sound) = state.current_game.sounds.iter().find(|s| s.id == button.sound_id) {
+                sound_editor.open(sound);
+                info!("Opened sound editor for ID {}", button.sound_id);
+            }
         }
     }
 }

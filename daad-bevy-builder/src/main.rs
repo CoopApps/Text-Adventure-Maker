@@ -27,6 +27,7 @@ fn main() {
         .init_resource::<builder::ui::components::LocationEditorModalState>()
         .init_resource::<builder::ui::components::PictureEditorModalState>()
         .init_resource::<builder::ui::components::LocationPickerModalState>()
+        .init_resource::<builder::ui::components::SoundEditorModalState>()
         .init_resource::<builder::ui::components::TooltipState>()
         .init_resource::<builder::ui::components::NotificationManager>()
         .init_resource::<builder::ui::components::UndoRedoManager>()
@@ -161,6 +162,18 @@ fn main() {
             builder::ui::components::render_location_picker_modal,
             builder::ui::components::handle_location_picker_button,
             builder::ui::components::handle_cancel_location_picker,
+        ))
+        .add_systems(Update, (
+            // Sound editor modal
+            builder::ui::components::render_sound_editor_modal,
+            builder::ui::components::handle_sound_name_input,
+            builder::ui::components::handle_sound_description_input,
+            builder::ui::components::handle_sound_web_file_input,
+            builder::ui::components::handle_sound_type_button,
+            builder::ui::components::handle_sound_preview_button,
+            builder::ui::components::handle_save_sound_button,
+            builder::ui::components::handle_cancel_sound_edit_button,
+            builder::ui::components::process_sound_text_input,
         ))
         .add_systems(Update, (
             // Flags and messages editor systems

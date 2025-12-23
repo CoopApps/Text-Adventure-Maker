@@ -4740,3 +4740,682 @@ pub fn process_picture_text_input(
         }
     }
 }
+
+// ============================================================================
+// Sound Editor Modal
+// ============================================================================
+
+#[derive(Component)]
+pub struct SoundEditorModal;
+
+#[derive(Resource)]
+pub struct SoundEditorModalState {
+    pub is_open: bool,
+    pub sound_id: u8,
+    pub name: String,
+    pub description: String,
+    pub sound_type: crate::daad::game::SoundType,
+    pub web_file: String,
+}
+
+impl Default for SoundEditorModalState {
+    fn default() -> Self {
+        Self {
+            is_open: false,
+            sound_id: 0,
+            name: String::new(),
+            description: String::new(),
+            sound_type: crate::daad::game::SoundType::Effect,
+            web_file: String::new(),
+        }
+    }
+}
+
+impl SoundEditorModalState {
+    pub fn open(&mut self, sound: &crate::daad::game::Sound) {
+        self.is_open = true;
+        self.sound_id = sound.id;
+        self.name = sound.name.clone();
+        self.description = sound.description.clone();
+        self.sound_type = sound.sound_type;
+        self.web_file = sound.web_file.clone().unwrap_or_default();
+    }
+
+    pub fn close(&mut self) {
+        self.is_open = false;
+    }
+}
+
+#[derive(Component)]
+pub struct SoundNameInputButton;
+
+#[derive(Component)]
+pub struct SoundDescriptionInputButton;
+
+#[derive(Component)]
+pub struct SoundWebFileInputButton;
+
+#[derive(Component)]
+pub struct SoundTypeButton {
+    pub sound_type: crate::daad::game::SoundType,
+}
+
+#[derive(Component)]
+pub struct SoundPreviewButton;
+
+#[derive(Component)]
+pub struct SaveSoundButton;
+
+#[derive(Component)]
+pub struct CancelSoundEditButton;
+
+pub fn render_sound_editor_modal(
+    mut commands: Commands,
+    modal_state: Res<SoundEditorModalState>,
+    query: Query<Entity, With<SoundEditorModal>>,
+) {
+    if !modal_state.is_open {
+        // Close any existing modals
+        for entity in query.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+        return;
+    }
+
+    // Don't re-render if already exists
+    if !query.is_empty() {
+        return;
+    }
+
+    use crate::daad::game::SoundType;
+
+    // Create modal backdrop
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                background_color: Color::rgba(0.0, 0.0, 0.0, 0.7).into(),
+                z_index: ZIndex::Global(100),
+                ..default()
+            },
+            ModalBackdrop,
+            SoundEditorModal,
+        ))
+        .with_children(|backdrop| {
+            // Modal container
+            backdrop
+                .spawn(NodeBundle {
+                    style: Style {
+                        flex_direction: FlexDirection::Column,
+                        padding: UiRect::all(Val::Px(25.0)),
+                        row_gap: Val::Px(15.0),
+                        width: Val::Px(550.0),
+                        max_height: Val::Percent(80.0),
+                        border: UiRect::all(Val::Px(3.0)),
+                        overflow: Overflow::clip_y(),
+                        ..default()
+                    },
+                    background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                    border_color: Color::rgb(0.6, 0.5, 0.8).into(),
+                    ..default()
+                })
+                .with_children(|modal| {
+                    // Title
+                    modal.spawn(TextBundle::from_section(
+                        format!("🔊 Edit Sound #{}", modal_state.sound_id),
+                        TextStyle {
+                            font_size: 22.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    ));
+
+                    // Name input
+                    modal.spawn(TextBundle::from_section(
+                        "Sound Name:",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::rgb(0.8, 0.8, 0.8),
+                            ..default()
+                        },
+                    ));
+
+                    modal
+                        .spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    padding: UiRect::all(Val::Px(10.0)),
+                                    width: Val::Percent(100.0),
+                                    justify_content: JustifyContent::FlexStart,
+                                    border: UiRect::all(Val::Px(2.0)),
+                                    ..default()
+                                },
+                                background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                                border_color: Color::rgb(0.4, 0.5, 0.6).into(),
+                                ..default()
+                            },
+                            SoundNameInputButton,
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn(TextBundle::from_section(
+                                if modal_state.name.is_empty() {
+                                    "Click to enter name..."
+                                } else {
+                                    &modal_state.name
+                                },
+                                TextStyle {
+                                    font_size: 14.0,
+                                    color: if modal_state.name.is_empty() {
+                                        Color::rgb(0.5, 0.5, 0.5)
+                                    } else {
+                                        Color::rgb(0.9, 0.9, 0.9)
+                                    },
+                                    ..default()
+                                },
+                            ));
+                        });
+
+                    // Description input
+                    modal.spawn(TextBundle::from_section(
+                        "Description:",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::rgb(0.8, 0.8, 0.8),
+                            ..default()
+                        },
+                    ));
+
+                    modal
+                        .spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    padding: UiRect::all(Val::Px(10.0)),
+                                    width: Val::Percent(100.0),
+                                    min_height: Val::Px(60.0),
+                                    justify_content: JustifyContent::FlexStart,
+                                    align_items: AlignItems::FlexStart,
+                                    border: UiRect::all(Val::Px(2.0)),
+                                    ..default()
+                                },
+                                background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                                border_color: Color::rgb(0.4, 0.5, 0.6).into(),
+                                ..default()
+                            },
+                            SoundDescriptionInputButton,
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn(TextBundle::from_section(
+                                if modal_state.description.is_empty() {
+                                    "Click to enter description..."
+                                } else {
+                                    &modal_state.description
+                                },
+                                TextStyle {
+                                    font_size: 14.0,
+                                    color: if modal_state.description.is_empty() {
+                                        Color::rgb(0.5, 0.5, 0.5)
+                                    } else {
+                                        Color::rgb(0.9, 0.9, 0.9)
+                                    },
+                                    ..default()
+                                },
+                            ));
+                        });
+
+                    // Sound type selector
+                    modal.spawn(TextBundle::from_section(
+                        "Sound Type:",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::rgb(0.8, 0.8, 0.8),
+                            ..default()
+                        },
+                    ));
+
+                    modal
+                        .spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(10.0),
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|row| {
+                            // Effect button
+                            let is_effect = modal_state.sound_type == SoundType::Effect;
+                            row.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::all(Val::Px(12.0)),
+                                        flex_grow: 1.0,
+                                        justify_content: JustifyContent::Center,
+                                        border: UiRect::all(Val::Px(2.0)),
+                                        ..default()
+                                    },
+                                    background_color: if is_effect {
+                                        Color::rgb(0.3, 0.6, 0.3)
+                                    } else {
+                                        Color::rgb(0.2, 0.2, 0.3)
+                                    }.into(),
+                                    border_color: if is_effect {
+                                        Color::rgb(0.4, 0.8, 0.4)
+                                    } else {
+                                        Color::rgb(0.3, 0.3, 0.4)
+                                    }.into(),
+                                    ..default()
+                                },
+                                SoundTypeButton {
+                                    sound_type: SoundType::Effect,
+                                },
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    "🔔 Effect",
+                                    TextStyle {
+                                        font_size: 14.0,
+                                        color: Color::WHITE,
+                                        ..default()
+                                    },
+                                ));
+                            });
+
+                            // Music button
+                            let is_music = modal_state.sound_type == SoundType::Music;
+                            row.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::all(Val::Px(12.0)),
+                                        flex_grow: 1.0,
+                                        justify_content: JustifyContent::Center,
+                                        border: UiRect::all(Val::Px(2.0)),
+                                        ..default()
+                                    },
+                                    background_color: if is_music {
+                                        Color::rgb(0.3, 0.3, 0.6)
+                                    } else {
+                                        Color::rgb(0.2, 0.2, 0.3)
+                                    }.into(),
+                                    border_color: if is_music {
+                                        Color::rgb(0.4, 0.4, 0.8)
+                                    } else {
+                                        Color::rgb(0.3, 0.3, 0.4)
+                                    }.into(),
+                                    ..default()
+                                },
+                                SoundTypeButton {
+                                    sound_type: SoundType::Music,
+                                },
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    "🎵 Music",
+                                    TextStyle {
+                                        font_size: 14.0,
+                                        color: Color::WHITE,
+                                        ..default()
+                                    },
+                                ));
+                            });
+
+                            // Beep button
+                            let is_beep = modal_state.sound_type == SoundType::Beep;
+                            row.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::all(Val::Px(12.0)),
+                                        flex_grow: 1.0,
+                                        justify_content: JustifyContent::Center,
+                                        border: UiRect::all(Val::Px(2.0)),
+                                        ..default()
+                                    },
+                                    background_color: if is_beep {
+                                        Color::rgb(0.6, 0.6, 0.3)
+                                    } else {
+                                        Color::rgb(0.2, 0.2, 0.3)
+                                    }.into(),
+                                    border_color: if is_beep {
+                                        Color::rgb(0.8, 0.8, 0.4)
+                                    } else {
+                                        Color::rgb(0.3, 0.3, 0.4)
+                                    }.into(),
+                                    ..default()
+                                },
+                                SoundTypeButton {
+                                    sound_type: SoundType::Beep,
+                                },
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    "📢 Beep",
+                                    TextStyle {
+                                        font_size: 14.0,
+                                        color: Color::WHITE,
+                                        ..default()
+                                    },
+                                ));
+                            });
+                        });
+
+                    // Web file path input
+                    modal.spawn(TextBundle::from_section(
+                        "Web File Path (MP3/WAV/OGG):",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::rgb(0.8, 0.8, 0.8),
+                            ..default()
+                        },
+                    ));
+
+                    modal
+                        .spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(10.0),
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|row| {
+                            // File path input
+                            row.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::all(Val::Px(10.0)),
+                                        flex_grow: 1.0,
+                                        justify_content: JustifyContent::FlexStart,
+                                        border: UiRect::all(Val::Px(2.0)),
+                                        ..default()
+                                    },
+                                    background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                                    border_color: Color::rgb(0.4, 0.5, 0.6).into(),
+                                    ..default()
+                                },
+                                SoundWebFileInputButton,
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    if modal_state.web_file.is_empty() {
+                                        "Click to enter file path (e.g., assets/sounds/effect.mp3)..."
+                                    } else {
+                                        &modal_state.web_file
+                                    },
+                                    TextStyle {
+                                        font_size: 14.0,
+                                        color: if modal_state.web_file.is_empty() {
+                                            Color::rgb(0.5, 0.5, 0.5)
+                                        } else {
+                                            Color::rgb(0.9, 0.9, 0.9)
+                                        },
+                                        ..default()
+                                    },
+                                ));
+                            });
+
+                            // Preview button
+                            row.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::all(Val::Px(10.0)),
+                                        ..default()
+                                    },
+                                    background_color: if modal_state.web_file.is_empty() {
+                                        Color::rgb(0.3, 0.3, 0.4)
+                                    } else {
+                                        Color::rgb(0.5, 0.3, 0.6)
+                                    }.into(),
+                                    ..default()
+                                },
+                                SoundPreviewButton,
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    "▶️ Preview",
+                                    TextStyle {
+                                        font_size: 14.0,
+                                        color: if modal_state.web_file.is_empty() {
+                                            Color::rgb(0.5, 0.5, 0.5)
+                                        } else {
+                                            Color::WHITE
+                                        },
+                                        ..default()
+                                    },
+                                ));
+                            });
+                        });
+
+                    // Info text
+                    modal
+                        .spawn(NodeBundle {
+                            style: Style {
+                                padding: UiRect::all(Val::Px(12.0)),
+                                ..default()
+                            },
+                            background_color: Color::rgba(0.2, 0.3, 0.4, 0.5).into(),
+                            ..default()
+                        })
+                        .with_children(|info| {
+                            info.spawn(TextBundle::from_section(
+                                "💡 Sound types:\n\
+                                • Effects: Short sounds played once (e.g., door opening, footsteps)\n\
+                                • Music: Background music tracks (can loop)\n\
+                                • Beeps: Simple tones and beeps for retro platforms",
+                                TextStyle {
+                                    font_size: 12.0,
+                                    color: Color::rgb(0.7, 0.75, 0.8),
+                                    ..default()
+                                },
+                            ));
+                        });
+
+                    // Action buttons
+                    modal
+                        .spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Row,
+                                justify_content: JustifyContent::FlexEnd,
+                                column_gap: Val::Px(10.0),
+                                margin: UiRect::top(Val::Px(10.0)),
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|buttons| {
+                            // Cancel button
+                            buttons.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
+                                        ..default()
+                                    },
+                                    background_color: Color::rgb(0.4, 0.4, 0.5).into(),
+                                    ..default()
+                                },
+                                CancelSoundEditButton,
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    "Cancel",
+                                    TextStyle {
+                                        font_size: 16.0,
+                                        color: Color::WHITE,
+                                        ..default()
+                                    },
+                                ));
+                            });
+
+                            // Save button
+                            buttons.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
+                                        ..default()
+                                    },
+                                    background_color: Color::rgb(0.3, 0.6, 0.4).into(),
+                                    ..default()
+                                },
+                                SaveSoundButton,
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    "💾 Save",
+                                    TextStyle {
+                                        font_size: 16.0,
+                                        color: Color::WHITE,
+                                        ..default()
+                                    },
+                                ));
+                            });
+                        });
+                });
+        });
+}
+
+// Sound editor modal handlers
+
+pub fn handle_sound_name_input(
+    modal_state: Res<SoundEditorModalState>,
+    mut text_input: ResMut<TextInputModalState>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<SoundNameInputButton>)>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            text_input.open_single_line(
+                "Enter Sound Name",
+                &modal_state.name,
+                "Sound name...",
+                "sound_name",
+            );
+        }
+    }
+}
+
+pub fn handle_sound_description_input(
+    modal_state: Res<SoundEditorModalState>,
+    mut text_input: ResMut<TextInputModalState>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<SoundDescriptionInputButton>)>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            text_input.open_multiline(
+                "Enter Sound Description",
+                &modal_state.description,
+                "Sound description...",
+                "sound_description",
+            );
+        }
+    }
+}
+
+pub fn handle_sound_web_file_input(
+    modal_state: Res<SoundEditorModalState>,
+    mut text_input: ResMut<TextInputModalState>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<SoundWebFileInputButton>)>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            text_input.open_single_line(
+                "Enter Sound File Path",
+                &modal_state.web_file,
+                "assets/sounds/effect.mp3",
+                "sound_web_file",
+            );
+        }
+    }
+}
+
+pub fn handle_sound_type_button(
+    mut modal_state: ResMut<SoundEditorModalState>,
+    mut interaction_query: Query<(&Interaction, &SoundTypeButton), Changed<Interaction>>,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            modal_state.sound_type = button.sound_type;
+        }
+    }
+}
+
+pub fn handle_sound_preview_button(
+    modal_state: Res<SoundEditorModalState>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<SoundPreviewButton>)>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if !modal_state.web_file.is_empty() {
+                info!("🔊 Preview sound: {} - Audio playback to be implemented", modal_state.web_file);
+                // TODO: Implement audio preview with Bevy audio system
+                // This would require:
+                // 1. Audio asset loading
+                // 2. AudioSink for playback control
+                // 3. Platform-specific audio support (esp. WASM)
+            } else {
+                info!("⚠️ No sound file path specified for preview");
+            }
+        }
+    }
+}
+
+pub fn handle_save_sound_button(
+    mut state: ResMut<crate::builder::state::BuilderState>,
+    mut modal_state: ResMut<SoundEditorModalState>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<SaveSoundButton>)>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(sound) = state.current_game.sounds.iter_mut().find(|s| s.id == modal_state.sound_id) {
+                sound.name = modal_state.name.clone();
+                sound.description = modal_state.description.clone();
+                sound.sound_type = modal_state.sound_type;
+                sound.web_file = if modal_state.web_file.is_empty() {
+                    None
+                } else {
+                    Some(modal_state.web_file.clone())
+                };
+
+                state.mark_dirty();
+                info!("Saved sound ID {}", modal_state.sound_id);
+            }
+            modal_state.close();
+        }
+    }
+}
+
+pub fn handle_cancel_sound_edit_button(
+    mut modal_state: ResMut<SoundEditorModalState>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<CancelSoundEditButton>)>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            modal_state.close();
+        }
+    }
+}
+
+// Process text input callbacks for sound editor
+pub fn process_sound_text_input(
+    mut sound_modal: ResMut<SoundEditorModalState>,
+    text_input: Res<TextInputModalState>,
+) {
+    if !text_input.is_open && text_input.callback_id.is_some() {
+        match text_input.callback_id.as_deref() {
+            Some("sound_name") => {
+                sound_modal.name = text_input.current_value.clone();
+            }
+            Some("sound_description") => {
+                sound_modal.description = text_input.current_value.clone();
+            }
+            Some("sound_web_file") => {
+                sound_modal.web_file = text_input.current_value.clone();
+            }
+            _ => {}
+        }
+    }
+}
