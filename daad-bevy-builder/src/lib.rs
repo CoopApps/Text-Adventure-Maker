@@ -5,6 +5,7 @@ pub mod builder;
 pub mod daad;
 pub mod viewer;
 pub mod preview;
+pub mod launcher;
 
 // Re-exports for convenience
 pub use builder::state::BuilderState;

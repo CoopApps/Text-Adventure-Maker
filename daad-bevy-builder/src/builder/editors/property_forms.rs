@@ -94,13 +94,12 @@ pub fn render_flags_editor(
 
                 parent
                     .spawn((
-                        ButtonBundle {
+                        NodeBundle {
                             style: Style {
                                 padding: UiRect::all(Val::Px(10.0)),
                                 border: UiRect::all(Val::Px(2.0)),
-                                flex_direction: FlexDirection::Row,
-                                align_items: AlignItems::Center,
-                                column_gap: Val::Px(15.0),
+                                flex_direction: FlexDirection::Column,
+                                row_gap: Val::Px(6.0),
                                 ..default()
                             },
                             background_color: if is_selected {
@@ -119,46 +118,126 @@ pub fn render_flags_editor(
                             flag_id: flag.id,
                         },
                     ))
-                    .with_children(|parent| {
-                        // Flag ID
-                        parent.spawn(TextBundle::from_section(
-                            format!("#{}", flag.id),
-                            TextStyle {
-                                font_size: 14.0,
-                                color: Color::rgb(0.5, 0.8, 1.0),
+                    .with_children(|card| {
+                        // Info row
+                        card.spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Row,
+                                align_items: AlignItems::Center,
+                                column_gap: Val::Px(15.0),
                                 ..default()
                             },
-                        ));
+                            ..default()
+                        })
+                        .with_children(|row| {
+                            // Flag ID
+                            row.spawn(TextBundle::from_section(
+                                format!("#{}", flag.id),
+                                TextStyle {
+                                    font_size: 14.0,
+                                    color: Color::rgb(0.5, 0.8, 1.0),
+                                    ..default()
+                                },
+                            ));
 
-                        // Flag name
-                        parent.spawn(TextBundle::from_section(
-                            &flag.name,
-                            TextStyle {
-                                font_size: 14.0,
-                                color: Color::WHITE,
-                                ..default()
-                            },
-                        ));
+                            // Flag name
+                            row.spawn(TextBundle::from_section(
+                                &flag.name,
+                                TextStyle {
+                                    font_size: 14.0,
+                                    color: Color::WHITE,
+                                    ..default()
+                                },
+                            ));
 
-                        // Description
-                        parent.spawn(TextBundle::from_section(
-                            format!("- {}", flag.description),
-                            TextStyle {
-                                font_size: 12.0,
-                                color: Color::rgb(0.7, 0.7, 0.7),
-                                ..default()
-                            },
-                        ));
+                            // Description
+                            row.spawn(TextBundle::from_section(
+                                format!("- {}", flag.description),
+                                TextStyle {
+                                    font_size: 12.0,
+                                    color: Color::rgb(0.7, 0.7, 0.7),
+                                    ..default()
+                                },
+                            ));
 
-                        // Initial value
-                        parent.spawn(TextBundle::from_section(
-                            format!("(initial: {})", flag.initial_value),
-                            TextStyle {
-                                font_size: 11.0,
-                                color: Color::rgb(0.6, 0.6, 0.6),
+                            // Initial value
+                            row.spawn(TextBundle::from_section(
+                                format!("(initial: {})", flag.initial_value),
+                                TextStyle {
+                                    font_size: 11.0,
+                                    color: Color::rgb(0.6, 0.6, 0.6),
+                                    ..default()
+                                },
+                            ));
+                        });
+
+                        // Button row (Edit and Delete)
+                        card.spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(8.0),
+                                margin: UiRect::top(Val::Px(4.0)),
                                 ..default()
                             },
-                        ));
+                            ..default()
+                        })
+                        .with_children(|button_row| {
+                            // Edit button
+                            button_row
+                                .spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            padding: UiRect::all(Val::Px(6.0)),
+                                            border: UiRect::all(Val::Px(1.0)),
+                                            ..default()
+                                        },
+                                        background_color: Color::rgb(0.3, 0.5, 0.7).into(),
+                                        border_color: Color::rgb(0.4, 0.6, 0.9).into(),
+                                        ..default()
+                                    },
+                                    EditFlagButton {
+                                        flag_id: flag.id,
+                                    },
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn(TextBundle::from_section(
+                                        "✏️ Edit",
+                                        TextStyle {
+                                            font_size: 11.0,
+                                            color: Color::WHITE,
+                                            ..default()
+                                        },
+                                    ));
+                                });
+
+                            // Delete button
+                            button_row
+                                .spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            padding: UiRect::all(Val::Px(6.0)),
+                                            border: UiRect::all(Val::Px(1.0)),
+                                            ..default()
+                                        },
+                                        background_color: Color::rgb(0.7, 0.3, 0.3).into(),
+                                        border_color: Color::rgb(0.9, 0.4, 0.4).into(),
+                                        ..default()
+                                    },
+                                    DeleteFlagButton {
+                                        flag_id: flag.id,
+                                    },
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn(TextBundle::from_section(
+                                        "🗑️ Delete",
+                                        TextStyle {
+                                            font_size: 11.0,
+                                            color: Color::WHITE,
+                                            ..default()
+                                        },
+                                    ));
+                                });
+                        });
                     });
             }
         });
@@ -257,13 +336,12 @@ pub fn render_messages_editor(
 
                 parent
                     .spawn((
-                        ButtonBundle {
+                        NodeBundle {
                             style: Style {
                                 padding: UiRect::all(Val::Px(10.0)),
                                 border: UiRect::all(Val::Px(2.0)),
-                                flex_direction: FlexDirection::Row,
-                                align_items: AlignItems::Center,
-                                column_gap: Val::Px(15.0),
+                                flex_direction: FlexDirection::Column,
+                                row_gap: Val::Px(6.0),
                                 ..default()
                             },
                             background_color: if is_selected {
@@ -282,32 +360,112 @@ pub fn render_messages_editor(
                             message_index: idx,
                         },
                     ))
-                    .with_children(|parent| {
-                        // Message ID
-                        parent.spawn(TextBundle::from_section(
-                            format!("#{}", idx),
-                            TextStyle {
-                                font_size: 14.0,
-                                color: Color::rgb(0.5, 0.8, 1.0),
+                    .with_children(|card| {
+                        // Info row
+                        card.spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Row,
+                                align_items: AlignItems::Center,
+                                column_gap: Val::Px(15.0),
                                 ..default()
                             },
-                        ));
+                            ..default()
+                        })
+                        .with_children(|row| {
+                            // Message ID
+                            row.spawn(TextBundle::from_section(
+                                format!("#{}", idx),
+                                TextStyle {
+                                    font_size: 14.0,
+                                    color: Color::rgb(0.5, 0.8, 1.0),
+                                    ..default()
+                                },
+                            ));
 
-                        // Message text (truncated if too long)
-                        let display_text = if message.len() > 80 {
-                            format!("\"{}...\"", &message[..77])
-                        } else {
-                            format!("\"{}\"", message)
-                        };
+                            // Message text (truncated if too long)
+                            let display_text = if message.len() > 80 {
+                                format!("\"{}...\"", &message[..77])
+                            } else {
+                                format!("\"{}\"", message)
+                            };
 
-                        parent.spawn(TextBundle::from_section(
-                            display_text,
-                            TextStyle {
-                                font_size: 13.0,
-                                color: Color::rgb(0.9, 0.9, 0.9),
+                            row.spawn(TextBundle::from_section(
+                                display_text,
+                                TextStyle {
+                                    font_size: 13.0,
+                                    color: Color::rgb(0.9, 0.9, 0.9),
+                                    ..default()
+                                },
+                            ));
+                        });
+
+                        // Button row (Edit and Delete)
+                        card.spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(8.0),
+                                margin: UiRect::top(Val::Px(4.0)),
                                 ..default()
                             },
-                        ));
+                            ..default()
+                        })
+                        .with_children(|button_row| {
+                            // Edit button
+                            button_row
+                                .spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            padding: UiRect::all(Val::Px(6.0)),
+                                            border: UiRect::all(Val::Px(1.0)),
+                                            ..default()
+                                        },
+                                        background_color: Color::rgb(0.3, 0.5, 0.7).into(),
+                                        border_color: Color::rgb(0.4, 0.6, 0.9).into(),
+                                        ..default()
+                                    },
+                                    EditMessageButton {
+                                        message_id: idx as u8,
+                                    },
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn(TextBundle::from_section(
+                                        "✏️ Edit",
+                                        TextStyle {
+                                            font_size: 11.0,
+                                            color: Color::WHITE,
+                                            ..default()
+                                        },
+                                    ));
+                                });
+
+                            // Delete button
+                            button_row
+                                .spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            padding: UiRect::all(Val::Px(6.0)),
+                                            border: UiRect::all(Val::Px(1.0)),
+                                            ..default()
+                                        },
+                                        background_color: Color::rgb(0.7, 0.3, 0.3).into(),
+                                        border_color: Color::rgb(0.9, 0.4, 0.4).into(),
+                                        ..default()
+                                    },
+                                    DeleteMessageButton {
+                                        message_id: idx as u8,
+                                    },
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn(TextBundle::from_section(
+                                        "🗑️ Delete",
+                                        TextStyle {
+                                            font_size: 11.0,
+                                            color: Color::WHITE,
+                                            ..default()
+                                        },
+                                    ));
+                                });
+                        });
                     });
             }
         });
@@ -418,3 +576,135 @@ pub(crate) struct AddFlagButton;
 
 #[derive(Component)]
 pub(crate) struct AddMessageButton;
+
+// Edit/Delete button components for Flag editor
+#[derive(Component)]
+pub struct EditFlagButton {
+    flag_id: u8,
+}
+
+#[derive(Component)]
+pub struct DeleteFlagButton {
+    flag_id: u8,
+}
+
+// Edit/Delete button components for Message editor  
+#[derive(Component)]
+pub struct EditMessageButton {
+    message_id: u8,
+}
+
+#[derive(Component)]
+pub struct DeleteMessageButton {
+    message_id: u8,
+}
+
+/// Handle edit flag button (opens text input modal)
+pub fn handle_edit_flag_button(
+    state: Res<BuilderState>,
+    mut text_modal: ResMut<crate::builder::ui::components::TextInputModalState>,
+    mut interaction_query: Query<
+        (&Interaction, &EditFlagButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(flag) = state.current_game.flags.iter().find(|f| f.id == button.flag_id) {
+                text_modal.open_single_line(
+                    "Edit Flag Name",
+                    &flag.name,
+                    "Enter flag name...",
+                    &format!("flag_{}", button.flag_id),
+                );
+            }
+        }
+    }
+}
+
+/// Handle delete flag button - opens confirmation modal
+pub fn handle_delete_flag_button(
+    state: Res<BuilderState>,
+    mut confirmation_modal: ResMut<crate::builder::ui::components::ConfirmationModalState>,
+    mut interaction_query: Query<
+        (&Interaction, &DeleteFlagButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(flag) = state.current_game.flags.iter().find(|f| f.id == button.flag_id) {
+                confirmation_modal.open(
+                    "Delete Flag",
+                    &format!("Are you sure you want to delete flag '{}' (#{})?\n\nThis action cannot be undone.", flag.name, flag.id),
+                    &format!("delete_flag_{}", button.flag_id),
+                );
+            }
+        }
+    }
+}
+
+/// Process confirmed flag deletion
+pub fn process_confirmed_flag_deletion(
+    mut state: ResMut<BuilderState>,
+    mut confirmation_modal: ResMut<crate::builder::ui::components::ConfirmationModalState>,
+) {
+    // Check if a deletion was confirmed
+    if let Some(callback_id) = &confirmation_modal.callback_id {
+        if callback_id.starts_with("delete_flag_") {
+            if let Some(flag_id_str) = callback_id.strip_prefix("delete_flag_") {
+                if let Ok(flag_id) = flag_id_str.parse::<u8>() {
+                    if let Some(idx) = state.current_game.flags.iter().position(|f| f.id == flag_id) {
+                        state.current_game.flags.remove(idx);
+                        state.unsaved_changes = true;
+                        info!("Deleted flag {}", flag_id);
+                    }
+                }
+            }
+            // Clear the callback after processing
+            confirmation_modal.close();
+        }
+    }
+}
+
+/// Handle edit message button (opens text input modal)
+pub fn handle_edit_message_button(
+    state: Res<BuilderState>,
+    mut text_modal: ResMut<crate::builder::ui::components::TextInputModalState>,
+    mut interaction_query: Query<
+        (&Interaction, &EditMessageButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(message) = state.current_game.messages.get(button.message_id as usize) {
+                text_modal.open_multiline(
+                    "Edit Message Text",
+                    message,
+                    "Enter message text...",
+                    &format!("message_{}", button.message_id),
+                );
+            }
+        }
+    }
+}
+
+/// Handle delete message button
+pub fn handle_delete_message_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &DeleteMessageButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            let idx = button.message_id as usize;
+            if idx < state.current_game.messages.len() {
+                state.current_game.messages.remove(idx);
+                state.unsaved_changes = true;
+            }
+        }
+    }
+}

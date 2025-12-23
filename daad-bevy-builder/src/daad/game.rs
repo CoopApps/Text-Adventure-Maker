@@ -2,6 +2,69 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use super::types::*;
 
+/// Supported languages for multi-language games
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum Language {
+    English,
+    Spanish,
+    French,
+    German,
+    Italian,
+    Portuguese,
+}
+
+impl Language {
+    pub fn code(&self) -> &'static str {
+        match self {
+            Language::English => "en",
+            Language::Spanish => "es",
+            Language::French => "fr",
+            Language::German => "de",
+            Language::Italian => "it",
+            Language::Portuguese => "pt",
+        }
+    }
+
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Language::English => "English",
+            Language::Spanish => "Español",
+            Language::French => "Français",
+            Language::German => "Deutsch",
+            Language::Italian => "Italiano",
+            Language::Portuguese => "Português",
+        }
+    }
+
+    pub fn flag_emoji(&self) -> &'static str {
+        match self {
+            Language::English => "🇬🇧",
+            Language::Spanish => "🇪🇸",
+            Language::French => "🇫🇷",
+            Language::German => "🇩🇪",
+            Language::Italian => "🇮🇹",
+            Language::Portuguese => "🇵🇹",
+        }
+    }
+
+    pub fn all() -> Vec<Language> {
+        vec![
+            Language::English,
+            Language::Spanish,
+            Language::French,
+            Language::German,
+            Language::Italian,
+            Language::Portuguese,
+        ]
+    }
+}
+
+impl Default for Language {
+    fn default() -> Self {
+        Language::English
+    }
+}
+
 /// Complete DAAD game
 #[derive(Debug, Clone, Serialize, Deserialize, Resource)]
 pub struct DaadGame {
@@ -14,20 +77,172 @@ pub struct DaadGame {
     pub flags: Vec<Flag>,
     pub messages: Vec<String>,
     pub vocabulary: Vec<VocabEntry>,
+    pub sounds: Vec<Sound>,
+    pub pictures: Vec<Picture>,
+
+    // Multi-language support
+    pub supported_languages: Vec<Language>,
+    pub default_language: Language,
+
+    // Game configuration
+    pub starting_location: u8,
+    pub max_carry_objects: u8,
+    pub max_carry_weight: u8,
+
+    // MALUVA extension support
+    pub maluva_enabled: bool,
+    pub maluva_platform: MaluvaPlatform,
+}
+
+/// MALUVA target platforms
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum MaluvaPlatform {
+    None,           // No MALUVA
+    ZXSpectrum,     // ZX Spectrum (ESXDOS)
+    ZXSpectrumPlus3, // ZX Spectrum +3
+    ZXSpectrumNext, // ZX Spectrum Next
+    ZXUno,          // ZX-Uno
+    AmstradCPC,     // Amstrad CPC
+    Commodore64,    // Commodore 64
+    Plus4,          // Commodore Plus/4
+    MSX,            // MSX
+    Amiga,          // Commodore Amiga
+    PCW,            // Amstrad PCW
+    Dandanator,     // Dandanator cart
+}
+
+impl MaluvaPlatform {
+    /// Get the MALUVA binary filename for this platform
+    pub fn binary_name(&self) -> &'static str {
+        match self {
+            MaluvaPlatform::None => "",
+            MaluvaPlatform::ZXSpectrum => "MLV_ESX.BIN",
+            MaluvaPlatform::ZXSpectrumPlus3 => "MLV_P3.BIN",
+            MaluvaPlatform::ZXSpectrumNext => "MLV_NXT.BIN",
+            MaluvaPlatform::ZXUno => "MLV_UNO.BIN",
+            MaluvaPlatform::AmstradCPC => "MLV_CPC.BIN",
+            MaluvaPlatform::Commodore64 => "MLV_C64.BIN",
+            MaluvaPlatform::Plus4 => "MLV_CP4.BIN",
+            MaluvaPlatform::MSX => "MLV_MSX.BIN",
+            MaluvaPlatform::Amiga => "MLV_AMI.BIN",
+            MaluvaPlatform::PCW => "MLV_PCW.BIN",
+            MaluvaPlatform::Dandanator => "MLV_DAN.BIN",
+        }
+    }
+
+    /// Get platform display name
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            MaluvaPlatform::None => "None (DAAD only)",
+            MaluvaPlatform::ZXSpectrum => "ZX Spectrum (ESXDOS)",
+            MaluvaPlatform::ZXSpectrumPlus3 => "ZX Spectrum +3",
+            MaluvaPlatform::ZXSpectrumNext => "ZX Spectrum Next",
+            MaluvaPlatform::ZXUno => "ZX-Uno",
+            MaluvaPlatform::AmstradCPC => "Amstrad CPC",
+            MaluvaPlatform::Commodore64 => "Commodore 64",
+            MaluvaPlatform::Plus4 => "Commodore Plus/4",
+            MaluvaPlatform::MSX => "MSX",
+            MaluvaPlatform::Amiga => "Commodore Amiga",
+            MaluvaPlatform::PCW => "Amstrad PCW",
+            MaluvaPlatform::Dandanator => "Dandanator",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VocabEntry {
-    pub word: String,
+    pub word: String,  // Word in default language
     pub word_type: VocabType,
     pub id: u8,
+    /// Optional translations to other languages
+    #[serde(default)]
+    pub translations: std::collections::HashMap<Language, String>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum VocabType {
     Verb,
     Noun,
     Adjective,
+    Adverb,
+    Preposition,
+    Pronoun,
+    Conjugation,
+}
+
+impl VocabType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            VocabType::Verb => "verb",
+            VocabType::Noun => "noun",
+            VocabType::Adjective => "adjective",
+            VocabType::Adverb => "adverb",
+            VocabType::Preposition => "preposition",
+            VocabType::Pronoun => "pronoun",
+            VocabType::Conjugation => "conjugation",
+        }
+    }
+}
+
+/// Sound effect or music resource
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Sound {
+    pub id: u8,
+    pub name: String,
+    pub description: String,
+    pub sound_type: SoundType,
+    /// File path for web/HTML export
+    pub web_file: Option<String>,
+    /// Platform-specific sound files (for retro platforms)
+    pub platform_files: std::collections::HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum SoundType {
+    Effect,  // Sound effect (short, played once)
+    Music,   // Music (long, can loop)
+    Beep,    // Simple beep/tone
+}
+
+impl SoundType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SoundType::Effect => "effect",
+            SoundType::Music => "music",
+            SoundType::Beep => "beep",
+        }
+    }
+}
+
+/// Picture/graphic resource
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Picture {
+    pub id: u8,
+    pub name: String,
+    pub description: String,
+    /// File path for web/HTML export (PNG, JPG, GIF)
+    pub web_file: Option<String>,
+    /// Platform-specific picture files (SCR for ZX Spectrum, PIC for Amstrad, etc.)
+    pub platform_files: std::collections::HashMap<String, String>,
+    /// Location ID where this picture should be displayed (0 = show at location 0)
+    /// None = not bound to any location (manual display via Picture action)
+    pub location_binding: Option<u8>,
+    /// Image dimensions (width, height) for web export
+    pub dimensions: Option<(u32, u32)>,
+}
+
+impl Picture {
+    pub fn new(id: u8, name: String) -> Self {
+        Self {
+            id,
+            name,
+            description: String::new(),
+            web_file: None,
+            platform_files: std::collections::HashMap::new(),
+            location_binding: None,
+            dimensions: None,
+        }
+    }
 }
 
 impl Default for DaadGame {
@@ -47,7 +262,21 @@ impl Default for DaadGame {
                     editor_color: Color::rgb(0.3, 0.5, 0.7),
                 }
             ],
-            objects: vec![],
+            objects: vec![
+                Object {
+                    id: 0,
+                    name: "torch".to_string(),
+                    description: "A burning torch".to_string(),
+                    noun: "torch".to_string(),
+                    adjective: "burning".to_string(),
+                    location: ObjectLocation::Location(0),
+                    weight: 10,
+                    is_container: false,
+                    is_wearable: false,
+                    is_takeable: true,
+                    icon: "🔦".to_string(),
+                },
+            ],
             rules: vec![],
             flags: vec![
                 Flag {
@@ -67,18 +296,42 @@ impl Default for DaadGame {
                     word: "get".to_string(),
                     word_type: VocabType::Verb,
                     id: 10,
+                    translations: std::collections::HashMap::new(),
                 },
                 VocabEntry {
                     word: "take".to_string(),
                     word_type: VocabType::Verb,
                     id: 10,
+                    translations: std::collections::HashMap::new(),
                 },
                 VocabEntry {
                     word: "drop".to_string(),
                     word_type: VocabType::Verb,
                     id: 18,
+                    translations: std::collections::HashMap::new(),
+                },
+                VocabEntry {
+                    word: "torch".to_string(),
+                    word_type: VocabType::Noun,
+                    id: 0,
+                    translations: std::collections::HashMap::new(),
+                },
+                VocabEntry {
+                    word: "burning".to_string(),
+                    word_type: VocabType::Adjective,
+                    id: 0,
+                    translations: std::collections::HashMap::new(),
                 },
             ],
+            sounds: vec![],
+            pictures: vec![],
+            supported_languages: vec![Language::English],
+            default_language: Language::English,
+            starting_location: 0,
+            max_carry_objects: 4,
+            max_carry_weight: 100,
+            maluva_enabled: false,
+            maluva_platform: MaluvaPlatform::None,
         }
     }
 }
@@ -135,6 +388,9 @@ impl DaadGame {
             process,
             conditions: vec![],
             actions: vec![],
+            verb: None,         // Default to wildcard
+            noun: None,         // Default to wildcard
+            label: None,        // No label by default
             editor_position: Vec2::new(100.0, 100.0 + (id as f32 * 80.0)),
             enabled: true,
         });

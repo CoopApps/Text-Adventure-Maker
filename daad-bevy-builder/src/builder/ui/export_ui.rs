@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use crate::builder::state::{BuilderState, Panel};
 use crate::daad::codegen::DaadCodeGenerator;
+use crate::launcher::{DaadLauncher, DrcTarget, DrcSubtarget, MobileExporter};
+use std::path::PathBuf;
 use std::fs;
 
 /// Render export panel
@@ -77,6 +79,64 @@ pub fn render_export_panel(
                 ..default()
             });
 
+            // Import Section
+            parent.spawn(TextBundle::from_section(
+                "📥 Import from DAAD Source",
+                TextStyle {
+                    font_size: 18.0,
+                    color: Color::rgb(0.9, 0.9, 1.0),
+                    ..default()
+                },
+            ));
+
+            parent.spawn(TextBundle::from_section(
+                "Import an existing DAAD .SCE source file into the visual editor",
+                TextStyle {
+                    font_size: 12.0,
+                    color: Color::rgb(0.6, 0.6, 0.6),
+                    ..default()
+                },
+            ));
+
+            // Import button
+            parent
+                .spawn((
+                    ButtonBundle {
+                        style: Style {
+                            padding: UiRect::all(Val::Px(12.0)),
+                            margin: UiRect::vertical(Val::Px(8.0)),
+                            border: UiRect::all(Val::Px(2.0)),
+                            ..default()
+                        },
+                        background_color: Color::rgb(0.6, 0.4, 0.7).into(),
+                        border_color: Color::rgb(0.7, 0.5, 0.8).into(),
+                        ..default()
+                    },
+                    ImportDaadSourceButton,
+                ))
+                .with_children(|parent| {
+                    parent.spawn(TextBundle::from_section(
+                        "📥 IMPORT DAAD SOURCE (.SCE)",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    ));
+                });
+
+            // Separator
+            parent.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(2.0),
+                    margin: UiRect::vertical(Val::Px(15.0)),
+                    ..default()
+                },
+                background_color: Color::rgb(0.3, 0.3, 0.35).into(),
+                ..default()
+            });
+
             // JSON Save Section
             parent.spawn(TextBundle::from_section(
                 "📁 Save Project (JSON)",
@@ -138,6 +198,138 @@ pub fn render_export_panel(
                         "💾 SAVE PROJECT TO JSON",
                         TextStyle {
                             font_size: 14.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    ));
+                });
+
+            // Separator
+            parent.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(2.0),
+                    margin: UiRect::vertical(Val::Px(15.0)),
+                    ..default()
+                },
+                background_color: Color::rgb(0.3, 0.3, 0.35).into(),
+                ..default()
+            });
+
+            // Recent Files Section
+            if !state.recent_files.is_empty() {
+                parent.spawn(TextBundle::from_section(
+                    "📂 Recent Projects",
+                    TextStyle {
+                        font_size: 18.0,
+                        color: Color::rgb(0.9, 0.9, 1.0),
+                        ..default()
+                    },
+                ));
+
+                parent.spawn(TextBundle::from_section(
+                    "Click to load a recent project",
+                    TextStyle {
+                        font_size: 12.0,
+                        color: Color::rgb(0.6, 0.6, 0.6),
+                        ..default()
+                    },
+                ));
+
+                // Recent files list
+                for (idx, filepath) in state.recent_files.iter().take(5).enumerate() {
+                    // Extract just the filename
+                    let filename = std::path::Path::new(filepath)
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or(filepath);
+
+                    parent
+                        .spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    padding: UiRect::all(Val::Px(10.0)),
+                                    margin: UiRect::top(Val::Px(4.0)),
+                                    border: UiRect::all(Val::Px(1.0)),
+                                    width: Val::Percent(100.0),
+                                    justify_content: JustifyContent::Start,
+                                    ..default()
+                                },
+                                background_color: Color::rgb(0.2, 0.25, 0.3).into(),
+                                border_color: Color::rgb(0.3, 0.4, 0.5).into(),
+                                ..default()
+                            },
+                            LoadRecentFileButton {
+                                index: idx,
+                            },
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn(TextBundle::from_section(
+                                format!("📄 {}", filename),
+                                TextStyle {
+                                    font_size: 12.0,
+                                    color: Color::rgb(0.9, 0.9, 0.9),
+                                    ..default()
+                                },
+                            ));
+                        });
+                }
+
+                // Separator
+                parent.spawn(NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Px(2.0),
+                        margin: UiRect::vertical(Val::Px(15.0)),
+                        ..default()
+                    },
+                    background_color: Color::rgb(0.3, 0.3, 0.35).into(),
+                    ..default()
+                });
+            }
+
+            // Auto-save toggle
+            parent.spawn(TextBundle::from_section(
+                "⚙️ Auto-Save",
+                TextStyle {
+                    font_size: 16.0,
+                    color: Color::rgb(0.9, 0.9, 1.0),
+                    ..default()
+                },
+            ));
+
+            parent
+                .spawn((
+                    ButtonBundle {
+                        style: Style {
+                            padding: UiRect::all(Val::Px(10.0)),
+                            margin: UiRect::vertical(Val::Px(4.0)),
+                            border: UiRect::all(Val::Px(1.0)),
+                            ..default()
+                        },
+                        background_color: if state.auto_save_enabled {
+                            Color::rgb(0.3, 0.6, 0.3)
+                        } else {
+                            Color::rgb(0.5, 0.3, 0.3)
+                        }.into(),
+                        border_color: if state.auto_save_enabled {
+                            Color::rgb(0.4, 0.8, 0.4)
+                        } else {
+                            Color::rgb(0.6, 0.4, 0.4)
+                        }.into(),
+                        ..default()
+                    },
+                    ToggleAutoSaveButton,
+                ))
+                .with_children(|btn| {
+                    btn.spawn(TextBundle::from_section(
+                        if state.auto_save_enabled {
+                            "✓ Auto-Save Enabled (every 60 seconds)"
+                        } else {
+                            "✗ Auto-Save Disabled"
+                        },
+                        TextStyle {
+                            font_size: 12.0,
                             color: Color::WHITE,
                             ..default()
                         },
@@ -246,6 +438,366 @@ pub fn render_export_panel(
                     ));
                 });
 
+            // Separator
+            parent.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(2.0),
+                    margin: UiRect::vertical(Val::Px(15.0)),
+                    ..default()
+                },
+                background_color: Color::rgb(0.3, 0.3, 0.35).into(),
+                ..default()
+            });
+
+            // Mobile Export Section
+            parent.spawn(TextBundle::from_section(
+                "📱 Export to Mobile HTML",
+                TextStyle {
+                    font_size: 18.0,
+                    color: Color::rgb(0.9, 0.9, 1.0),
+                    ..default()
+                },
+            ));
+
+            parent.spawn(TextBundle::from_section(
+                "Create a mobile-optimized HTML5 game with touch controls and responsive design",
+                TextStyle {
+                    font_size: 12.0,
+                    color: Color::rgb(0.6, 0.6, 0.6),
+                    ..default()
+                },
+            ));
+
+            // Export Mobile HTML button
+            parent
+                .spawn((
+                    ButtonBundle {
+                        style: Style {
+                            padding: UiRect::all(Val::Px(12.0)),
+                            margin: UiRect::vertical(Val::Px(8.0)),
+                            border: UiRect::all(Val::Px(2.0)),
+                            ..default()
+                        },
+                        background_color: Color::rgb(0.6, 0.4, 0.8).into(),
+                        border_color: Color::rgb(0.7, 0.5, 0.9).into(),
+                        ..default()
+                    },
+                    ExportMobileButton,
+                ))
+                .with_children(|parent| {
+                    parent.spawn(TextBundle::from_section(
+                        "📱 EXPORT TO MOBILE HTML",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    ));
+                });
+
+            // Separator
+            parent.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(2.0),
+                    margin: UiRect::vertical(Val::Px(15.0)),
+                    ..default()
+                },
+                background_color: Color::rgb(0.3, 0.3, 0.35).into(),
+                ..default()
+            });
+
+            // Build & Test Section
+            parent.spawn(TextBundle::from_section(
+                "🚀 Build & Test with DRC",
+                TextStyle {
+                    font_size: 18.0,
+                    color: Color::rgb(0.9, 0.9, 1.0),
+                    ..default()
+                },
+            ));
+
+            parent.spawn(TextBundle::from_section(
+                "Compile your game with the DRC compiler and verify it works",
+                TextStyle {
+                    font_size: 12.0,
+                    color: Color::rgb(0.6, 0.6, 0.6),
+                    ..default()
+                },
+            ));
+
+            // Platform selector
+            parent.spawn(TextBundle::from_section(
+                "Target Platform:",
+                TextStyle {
+                    font_size: 13.0,
+                    color: Color::rgb(0.9, 0.9, 0.9),
+                    ..default()
+                },
+            ));
+
+            // Platform selection grid
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
+                        display: Display::Grid,
+                        grid_template_columns: RepeatedGridTrack::flex(3, 1.0),
+                        column_gap: Val::Px(8.0),
+                        row_gap: Val::Px(8.0),
+                        margin: UiRect::vertical(Val::Px(8.0)),
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|parent| {
+                    // Helper function to create platform button
+                    let create_platform_button = |parent: &mut ChildBuilder,
+                                                   name: &str,
+                                                   icon: &str,
+                                                   target: DrcTarget,
+                                                   is_selected: bool| {
+                        let bg_color = if is_selected {
+                            Color::rgb(0.4, 0.6, 0.4)
+                        } else {
+                            Color::rgb(0.3, 0.3, 0.35)
+                        };
+                        let border_color = if is_selected {
+                            Color::rgb(0.6, 0.9, 0.6)
+                        } else {
+                            Color::rgb(0.4, 0.4, 0.45)
+                        };
+
+                        parent
+                            .spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::all(Val::Px(8.0)),
+                                        border: UiRect::all(Val::Px(2.0)),
+                                        flex_direction: FlexDirection::Column,
+                                        align_items: AlignItems::Center,
+                                        justify_content: JustifyContent::Center,
+                                        ..default()
+                                    },
+                                    background_color: bg_color.into(),
+                                    border_color: border_color.into(),
+                                    ..default()
+                                },
+                                PlatformButton { target },
+                            ))
+                            .with_children(|parent| {
+                                parent.spawn(TextBundle::from_section(
+                                    icon,
+                                    TextStyle {
+                                        font_size: 20.0,
+                                        color: Color::WHITE,
+                                        ..default()
+                                    },
+                                ));
+                                parent.spawn(TextBundle::from_section(
+                                    name,
+                                    TextStyle {
+                                        font_size: 10.0,
+                                        color: Color::rgb(0.9, 0.9, 0.9),
+                                        ..default()
+                                    },
+                                ));
+                            });
+                    };
+
+                    let selected = state.target_platform;
+
+                    // Row 1
+                    create_platform_button(
+                        parent,
+                        "ZX Spectrum",
+                        "💾",
+                        DrcTarget::ZXSpectrum,
+                        selected == DrcTarget::ZXSpectrum,
+                    );
+                    create_platform_button(
+                        parent,
+                        "Amstrad CPC",
+                        "🖥️",
+                        DrcTarget::AmstradCPC,
+                        selected == DrcTarget::AmstradCPC,
+                    );
+                    create_platform_button(
+                        parent,
+                        "C64",
+                        "🎮",
+                        DrcTarget::Commodore64,
+                        selected == DrcTarget::Commodore64,
+                    );
+
+                    // Row 2
+                    create_platform_button(
+                        parent,
+                        "MSX",
+                        "📼",
+                        DrcTarget::MSX,
+                        selected == DrcTarget::MSX,
+                    );
+                    create_platform_button(
+                        parent,
+                        "MSX2",
+                        "📼",
+                        DrcTarget::MSX2,
+                        selected == DrcTarget::MSX2,
+                    );
+                    create_platform_button(
+                        parent,
+                        "PC",
+                        "🖥️",
+                        DrcTarget::PC,
+                        selected == DrcTarget::PC,
+                    );
+
+                    // Row 3
+                    create_platform_button(
+                        parent,
+                        "Amiga",
+                        "💻",
+                        DrcTarget::Amiga,
+                        selected == DrcTarget::Amiga,
+                    );
+                    create_platform_button(
+                        parent,
+                        "Atari ST",
+                        "🖥️",
+                        DrcTarget::AtariST,
+                        selected == DrcTarget::AtariST,
+                    );
+                    create_platform_button(
+                        parent,
+                        "HTML",
+                        "🌐",
+                        DrcTarget::HTML,
+                        selected == DrcTarget::HTML,
+                    );
+
+                    // Row 4
+                    create_platform_button(
+                        parent,
+                        "PCW",
+                        "🖨️",
+                        DrcTarget::PCW,
+                        selected == DrcTarget::PCW,
+                    );
+                    create_platform_button(
+                        parent,
+                        "Plus/4",
+                        "🎮",
+                        DrcTarget::CommodorePlus4,
+                        selected == DrcTarget::CommodorePlus4,
+                    );
+                });
+
+            // Build & Test button
+            parent
+                .spawn((
+                    ButtonBundle {
+                        style: Style {
+                            padding: UiRect::all(Val::Px(12.0)),
+                            margin: UiRect::vertical(Val::Px(8.0)),
+                            border: UiRect::all(Val::Px(2.0)),
+                            ..default()
+                        },
+                        background_color: Color::rgb(0.7, 0.3, 0.7).into(),
+                        border_color: Color::rgb(0.9, 0.4, 0.9).into(),
+                        ..default()
+                    },
+                    BuildTestButton,
+                ))
+                .with_children(|parent| {
+                    parent.spawn(TextBundle::from_section(
+                        "🚀 BUILD & TEST",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    ));
+                });
+
+            // Play in Browser button
+            parent
+                .spawn((
+                    ButtonBundle {
+                        style: Style {
+                            padding: UiRect::all(Val::Px(12.0)),
+                            margin: UiRect::vertical(Val::Px(8.0)),
+                            border: UiRect::all(Val::Px(2.0)),
+                            ..default()
+                        },
+                        background_color: Color::rgb(0.2, 0.5, 0.7).into(),
+                        border_color: Color::rgb(0.3, 0.7, 0.9).into(),
+                        ..default()
+                    },
+                    PlayInBrowserButton,
+                ))
+                .with_children(|parent| {
+                    parent.spawn(TextBundle::from_section(
+                        "🌐 PLAY IN BROWSER",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    ));
+                });
+
+            // Compilation output display
+            if let Some(output) = &state.compilation_output {
+                let bg_color = if state.compilation_success {
+                    Color::rgba(0.2, 0.4, 0.2, 0.8)  // Green for success
+                } else {
+                    Color::rgba(0.4, 0.2, 0.2, 0.8)  // Red for errors
+                };
+
+                let title = if state.compilation_success {
+                    "✅ Compilation Successful"
+                } else {
+                    "❌ Compilation Failed"
+                };
+
+                parent
+                    .spawn(NodeBundle {
+                        style: Style {
+                            flex_direction: FlexDirection::Column,
+                            padding: UiRect::all(Val::Px(10.0)),
+                            margin: UiRect::vertical(Val::Px(8.0)),
+                            border: UiRect::all(Val::Px(2.0)),
+                            max_height: Val::Px(200.0),
+                            ..default()
+                        },
+                        background_color: bg_color.into(),
+                        border_color: Color::rgb(0.5, 0.5, 0.5).into(),
+                        ..default()
+                    })
+                    .with_children(|parent| {
+                        // Title
+                        parent.spawn(TextBundle::from_section(
+                            title,
+                            TextStyle {
+                                font_size: 13.0,
+                                color: Color::WHITE,
+                                ..default()
+                            },
+                        ));
+
+                        // Output text
+                        parent.spawn(TextBundle::from_section(
+                            output,
+                            TextStyle {
+                                font_size: 11.0,
+                                color: Color::rgb(0.9, 0.9, 0.9),
+                                ..default()
+                            },
+                        ));
+                    });
+            }
+
             // Help text
             parent.spawn(TextBundle::from_section(
                 "ℹ️ Files will be saved to: ./exports/",
@@ -309,6 +861,152 @@ pub fn handle_save_json_button(
     }
 }
 
+/// Handle import DAAD source button
+pub fn handle_import_daad_source_button(
+    mut text_input: ResMut<crate::builder::ui::components::TextInputModalState>,
+    mut notification_manager: ResMut<crate::builder::ui::components::NotificationManager>,
+    time: Res<Time>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<ImportDaadSourceButton>),
+    >,
+) {
+    for interaction in interaction_query.iter_mut() {
+        if *interaction == Interaction::Pressed {
+            // Open text input for file path
+            text_input.open_single_line(
+                "Import DAAD Source File",
+                "",
+                "./exports/game.sce",
+                "import_daad_source",
+            );
+
+            // Show informational notification
+            notification_manager.add_warning(
+                "ℹ️ DAAD import: Enter .SCE file path to import (parser in development)",
+                time.elapsed_seconds_f64(),
+            );
+
+            info!("Import DAAD source button clicked - opening file path dialog");
+        }
+    }
+}
+
+/// Process DAAD source import from text input
+pub fn process_daad_import_text_input(
+    mut state: ResMut<BuilderState>,
+    text_input: Res<crate::builder::ui::components::TextInputModalState>,
+    mut notification_manager: ResMut<crate::builder::ui::components::NotificationManager>,
+    time: Res<Time>,
+) {
+    // Check if text input was just closed with the import callback
+    if !text_input.is_open && text_input.callback_id.as_deref() == Some("import_daad_source") && !text_input.current_value.is_empty() {
+        let file_path = &text_input.current_value;
+
+        info!("Attempting to import DAAD source from: {}", file_path);
+
+        // Try to read the file
+        match fs::read_to_string(file_path) {
+            Ok(content) => {
+                // TODO: Implement full DAAD .SCE parser
+                // The parser would need to:
+                // 1. Parse /CTL section (control characters)
+                // 2. Parse /VOC section (vocabulary with word_id word_type)
+                // 3. Parse /STX section (system messages)
+                // 4. Parse /LTX section (location descriptions)
+                // 5. Parse /OTX section (object descriptions)
+                // 6. Parse /MTX section (user messages)
+                // 7. Parse /OBJ section (object definitions)
+                // 8. Parse /LOC section (location connections)
+                // 9. Parse /PRO section (process/rule tables)
+                //
+                // Format example:
+                // /VOC
+                // NORTH    1    _
+                // TAKE     10   verb
+                // ...
+                //
+                // For now, show a placeholder notification
+                notification_manager.add_error(
+                    &format!("❌ DAAD parser not yet implemented. File loaded: {} ({} bytes)",
+                        file_path, content.len()),
+                    time.elapsed_seconds_f64(),
+                );
+
+                // Log file info for development
+                info!("DAAD source file loaded: {} bytes", content.len());
+                info!("First 200 chars: {}", &content.chars().take(200).collect::<String>());
+
+                // When parser is implemented, it would look like:
+                // match DaadParser::parse(&content) {
+                //     Ok(game) => {
+                //         state.current_game = game;
+                //         state.mark_dirty();
+                //         notification_manager.add_success(
+                //             "✅ DAAD source imported successfully",
+                //             time.elapsed_seconds_f64(),
+                //         );
+                //     }
+                //     Err(e) => {
+                //         notification_manager.add_error(
+                //             &format!("❌ Parse error: {}", e),
+                //             time.elapsed_seconds_f64(),
+                //         );
+                //     }
+                // }
+            }
+            Err(e) => {
+                notification_manager.add_error(
+                    &format!("❌ Failed to read file: {}", e),
+                    time.elapsed_seconds_f64(),
+                );
+                error!("Failed to read DAAD source file: {}", e);
+            }
+        }
+    }
+}
+
+/// Handle load recent file button
+pub fn handle_load_recent_file_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &LoadRecentFileButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(filepath) = state.recent_files.get(button.index).cloned() {
+                info!("Loading recent file: {}", filepath);
+                match state.load_game(&filepath) {
+                    Ok(_) => {
+                        info!("✅ Successfully loaded: {}", filepath);
+                    }
+                    Err(e) => {
+                        error!("❌ Failed to load file: {}", e);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Handle toggle auto-save button
+pub fn handle_toggle_auto_save_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<ToggleAutoSaveButton>),
+    >,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            state.auto_save_enabled = !state.auto_save_enabled;
+            info!("Auto-save {}", if state.auto_save_enabled { "enabled" } else { "disabled" });
+        }
+    }
+}
+
 /// Handle export DAAD button
 pub fn handle_export_daad_button(
     state: Res<BuilderState>,
@@ -342,6 +1040,40 @@ pub fn handle_export_daad_button(
     }
 }
 
+/// Handle mobile HTML export button
+pub fn handle_export_mobile_button(
+    state: Res<BuilderState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<ExportMobileButton>),
+    >,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            // Create exports directory if it doesn't exist
+            let _ = fs::create_dir_all("./exports");
+
+            // Generate filename from game title
+            let filename = state.current_game.title.replace(' ', "_").to_lowercase();
+            let filepath = format!("./exports/{}_mobile.html", filename);
+
+            // Generate mobile HTML
+            let html = MobileExporter::export(&state.current_game);
+
+            // Write to file
+            match fs::write(&filepath, html) {
+                Ok(_) => {
+                    info!("✅ Mobile HTML game exported to: {}", filepath);
+                    info!("📱 Open {} in your browser or transfer to mobile device!", filepath);
+                }
+                Err(e) => {
+                    error!("❌ Failed to write mobile HTML file: {}", e);
+                }
+            }
+        }
+    }
+}
+
 /// Handle preview DAAD code button
 pub fn handle_preview_daad_button(
     mut state: ResMut<BuilderState>,
@@ -359,9 +1091,227 @@ pub fn handle_preview_daad_button(
     }
 }
 
+/// Handle platform button clicks - switch target platform
+pub fn handle_platform_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        (&Interaction, &PlatformButton),
+        Changed<Interaction>,
+    >,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            info!("Selected platform: {:?}", button.target);
+            state.target_platform = button.target;
+
+            // Set default subtarget based on platform
+            state.target_subtarget = match button.target {
+                DrcTarget::ZXSpectrum => Some(DrcSubtarget::ZXPlus3),
+                DrcTarget::PC => Some(DrcSubtarget::PCVGA),
+                DrcTarget::MSX2 => Some(DrcSubtarget::MSX2Mode("5_8".to_string())),
+                _ => None,
+            };
+        }
+    }
+}
+
+/// Handle Build & Test button - compile with DRC
+pub fn handle_build_test_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<BuildTestButton>),
+    >,
+) {
+    for interaction in interaction_query.iter_mut() {
+        if *interaction == Interaction::Pressed {
+            info!("🚀 Build & Test button pressed - starting DRC compilation");
+
+            // Create exports directory
+            let _ = fs::create_dir_all("./exports");
+
+            // Generate filename from game title
+            let filename = state.current_game.title.replace(' ', "_").to_lowercase();
+            let sce_path = format!("./exports/{}.sce", filename);
+
+            // Generate DAAD source code
+            let daad_code = DaadCodeGenerator::generate(&state.current_game);
+
+            // Write .sce file
+            match fs::write(&sce_path, &daad_code) {
+                Ok(_) => {
+                    info!("✅ Generated .sce file: {}", sce_path);
+
+                    // Try to compile with DRC
+                    match DaadLauncher::auto_detect() {
+                        Ok(launcher) => {
+                            info!("✅ Found DRC compiler");
+
+                            // Compile the .sce file
+                            match launcher.compile_sce_with_output(
+                                &PathBuf::from(&sce_path),
+                                state.target_platform,
+                                state.target_subtarget.clone(),
+                                None,
+                            ) {
+                                Ok((json_path, output)) => {
+                                    info!("✅ Compilation successful: {}", json_path.display());
+                                    state.compilation_output = Some(output.combined_output());
+                                    state.compilation_success = true;
+                                }
+                                Err(e) => {
+                                    error!("❌ Compilation failed: {}", e);
+                                    state.compilation_output = Some(format!("❌ Compilation Error:\n\n{}", e));
+                                    state.compilation_success = false;
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("❌ DRC not found: {}", e);
+                            state.compilation_output = Some(format!(
+                                "❌ DRC Compiler Not Found\n\n{}\n\nPlease ensure DRC is compiled at:\n../external/DRC/src/drc",
+                                e
+                            ));
+                            state.compilation_success = false;
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("❌ Failed to write .sce file: {}", e);
+                    state.compilation_output = Some(format!("❌ File Write Error:\n\n{}", e));
+                    state.compilation_success = false;
+                }
+            }
+        }
+    }
+}
+
+/// Handle Play in Browser button - compile to HTML and open in browser
+pub fn handle_play_in_browser_button(
+    mut state: ResMut<BuilderState>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<PlayInBrowserButton>),
+    >,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            info!("🌐 Play in Browser button pressed - compiling to HTML");
+
+            // Create exports directory
+            let _ = fs::create_dir_all("./exports");
+
+            // Generate filename from game title
+            let filename = state.current_game.title.replace(' ', "_").to_lowercase();
+            let sce_path = format!("./exports/{}.sce", filename);
+            let html_path = format!("./exports/{}.html", filename);
+
+            // Generate DAAD source code
+            let daad_code = DaadCodeGenerator::generate(&state.current_game);
+
+            // Write .sce file
+            match fs::write(&sce_path, &daad_code) {
+                Ok(_) => {
+                    info!("✅ Generated .sce file: {}", sce_path);
+
+                    // Compile to HTML
+                    match DaadLauncher::auto_detect() {
+                        Ok(launcher) => {
+                            info!("✅ Found DRC compiler");
+
+                            match launcher.compile_sce_with_output(
+                                &PathBuf::from(&sce_path),
+                                DrcTarget::HTML,
+                                None,
+                                Some(PathBuf::from(&html_path)),
+                            ) {
+                                Ok((html_file, output)) => {
+                                    info!("✅ HTML compilation successful: {}", html_file.display());
+
+                                    // Open in default browser
+                                    match open_in_browser(&html_file) {
+                                        Ok(_) => {
+                                            state.compilation_output = Some(format!(
+                                                "✅ Game compiled to HTML!\n\n{}\n\n🌐 Opening in browser...",
+                                                output.combined_output()
+                                            ));
+                                            state.compilation_success = true;
+                                        }
+                                        Err(e) => {
+                                            state.compilation_output = Some(format!(
+                                                "✅ Game compiled successfully!\n\n{}\n\n⚠️  Could not auto-open browser: {}\n\nManually open: {}",
+                                                output.combined_output(),
+                                                e,
+                                                html_file.display()
+                                            ));
+                                            state.compilation_success = true;
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    error!("❌ HTML compilation failed: {}", e);
+                                    state.compilation_output = Some(format!("❌ HTML Compilation Error:\n\n{}", e));
+                                    state.compilation_success = false;
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("❌ DRC not found: {}", e);
+                            state.compilation_output = Some(format!(
+                                "❌ DRC Compiler Not Found\n\n{}\n\nPlease ensure DRC is compiled at:\n../external/DRC/src/drc",
+                                e
+                            ));
+                            state.compilation_success = false;
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("❌ Failed to write .sce file: {}", e);
+                    state.compilation_output = Some(format!("❌ File Write Error:\n\n{}", e));
+                    state.compilation_success = false;
+                }
+            }
+        }
+    }
+}
+
+/// Open a file in the default browser (cross-platform)
+fn open_in_browser(path: &PathBuf) -> Result<(), String> {
+    let path_str = path.to_string_lossy();
+
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&*path_str)
+            .spawn()
+            .map_err(|e| format!("Failed to launch xdg-open: {}", e))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&*path_str)
+            .spawn()
+            .map_err(|e| format!("Failed to launch open: {}", e))?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", &path_str])
+            .spawn()
+            .map_err(|e| format!("Failed to launch browser: {}", e))?;
+    }
+
+    Ok(())
+}
+
 // Components
 #[derive(Component)]
 pub(crate) struct ExportPanel;
+
+#[derive(Component)]
+pub(crate) struct ImportDaadSourceButton;
 
 #[derive(Component)]
 pub(crate) struct SaveJsonButton;
@@ -371,3 +1321,25 @@ pub(crate) struct ExportDaadButton;
 
 #[derive(Component)]
 pub(crate) struct PreviewDaadButton;
+
+#[derive(Component)]
+pub(crate) struct BuildTestButton;
+
+#[derive(Component)]
+pub(crate) struct PlatformButton {
+    pub target: DrcTarget,
+}
+
+#[derive(Component)]
+pub(crate) struct PlayInBrowserButton;
+
+#[derive(Component)]
+pub(crate) struct ExportMobileButton;
+
+#[derive(Component)]
+pub(crate) struct LoadRecentFileButton {
+    pub index: usize,
+}
+
+#[derive(Component)]
+pub(crate) struct ToggleAutoSaveButton;

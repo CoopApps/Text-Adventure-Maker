@@ -1,10 +1,26 @@
 use bevy::prelude::*;
 use crate::builder::state::{BuilderState, Panel};
+use crate::builder::debug::DebugState;
+use super::vocabulary_ui::{render_vocabulary_panel, VocabularySearchState};
+use super::game_info_ui::render_game_info_panel;
+use super::analytics_ui::render_analytics_panel;
+use super::sound_ui::render_sound_panel;
+use super::graphics_ui::render_graphics_panel;
+use super::playtest_ui::{render_playtest_panel, PlaytestState};
+use super::templates_ui::render_templates_panel;
+use super::dialogue_ui::{render_dialogue_panel, DialogueEditorState};
+use super::debug_ui::render_debug_panel;
+use super::components::ValidationResults;
 
 /// Render the active panel content
 pub fn render_active_panel(
     mut commands: Commands,
     state: Res<BuilderState>,
+    playtest: Res<PlaytestState>,
+    dialogue: Res<DialogueEditorState>,
+    debug: Res<DebugState>,
+    vocab_search: Res<VocabularySearchState>,
+    validation: Res<ValidationResults>,
     query: Query<Entity, With<PanelContent>>,
 ) {
     // Clean up old panel content
@@ -40,94 +56,18 @@ pub fn render_active_panel(
                 Panel::Objects => render_objects_panel(parent, &state),
                 Panel::Rules => render_rules_panel(parent, &state),
                 Panel::Flags => render_flags_panel(parent, &state),
+                Panel::Vocabulary => render_vocabulary_panel(parent, &state, &vocab_search),
+                Panel::Graphics => render_graphics_panel(parent, &state),
+                Panel::Sounds => render_sound_panel(parent, &state),
+                Panel::Templates => render_templates_panel(parent, &state),
+                Panel::Dialogue => render_dialogue_panel(parent, &state, &dialogue),
+                Panel::Analytics => render_analytics_panel(parent, &state, &validation),
                 Panel::Messages => render_messages_panel(parent, &state),
-                Panel::Preview => render_preview_panel(parent, &state),
+                Panel::Debug => render_debug_panel(parent, &state, &debug),
+                Panel::Preview => render_playtest_panel(parent, &state, &playtest),
                 Panel::Export => render_export_panel(parent, &state),
             }
         });
-}
-
-fn render_game_info_panel(parent: &mut ChildBuilder, state: &BuilderState) {
-    parent.spawn(TextBundle::from_section(
-        "📋 Game Information",
-        TextStyle {
-            font_size: 24.0,
-            color: Color::WHITE,
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        format!("Title: {}", state.current_game.title),
-        TextStyle {
-            font_size: 18.0,
-            color: Color::rgb(0.9, 0.9, 0.9),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        format!("Author: {}", state.current_game.author),
-        TextStyle {
-            font_size: 18.0,
-            color: Color::rgb(0.9, 0.9, 0.9),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        format!("Version: {}", state.current_game.version),
-        TextStyle {
-            font_size: 18.0,
-            color: Color::rgb(0.9, 0.9, 0.9),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        "\nStatistics:",
-        TextStyle {
-            font_size: 20.0,
-            color: Color::rgb(0.7, 0.9, 1.0),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        format!("📍 Locations: {}", state.current_game.locations.len()),
-        TextStyle {
-            font_size: 16.0,
-            color: Color::rgb(0.8, 0.8, 0.8),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        format!("📦 Objects: {}", state.current_game.objects.len()),
-        TextStyle {
-            font_size: 16.0,
-            color: Color::rgb(0.8, 0.8, 0.8),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        format!("⚙️ Rules: {}", state.current_game.rules.len()),
-        TextStyle {
-            font_size: 16.0,
-            color: Color::rgb(0.8, 0.8, 0.8),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        format!("🚩 Flags: {}", state.current_game.flags.len()),
-        TextStyle {
-            font_size: 16.0,
-            color: Color::rgb(0.8, 0.8, 0.8),
-            ..default()
-        },
-    ));
 }
 
 fn render_locations_panel(parent: &mut ChildBuilder, state: &BuilderState) {
@@ -361,35 +301,6 @@ fn render_messages_panel(parent: &mut ChildBuilder, state: &BuilderState) {
         TextStyle {
             font_size: 16.0,
             color: Color::rgb(0.4, 0.8, 0.4),
-            ..default()
-        },
-    ));
-}
-
-fn render_preview_panel(parent: &mut ChildBuilder, _state: &BuilderState) {
-    parent.spawn(TextBundle::from_section(
-        "▶️ Game Preview",
-        TextStyle {
-            font_size: 24.0,
-            color: Color::WHITE,
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        "\nLive game preview will appear here.",
-        TextStyle {
-            font_size: 18.0,
-            color: Color::rgb(0.7, 0.7, 0.7),
-            ..default()
-        },
-    ));
-
-    parent.spawn(TextBundle::from_section(
-        "\nPress F5 to toggle preview mode.",
-        TextStyle {
-            font_size: 14.0,
-            color: Color::rgb(0.5, 0.5, 0.5),
             ..default()
         },
     ));

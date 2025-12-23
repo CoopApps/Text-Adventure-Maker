@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use crate::builder::state::{BuilderState, Panel};
+use super::components::Tooltip;
 
 /// Render the toolbar with panel buttons
 pub fn render_toolbar(
@@ -45,6 +46,18 @@ pub fn render_toolbar(
             for panel in panels {
                 let is_selected = state.selected_panel == panel;
 
+                let tooltip_text = match panel {
+                    Panel::GameInfo => "Edit game title, author, and settings",
+                    Panel::Locations => "Create and edit game locations with visual map editor",
+                    Panel::Objects => "Manage game objects and items",
+                    Panel::Rules => "Define game logic, conditions, and actions",
+                    Panel::Flags => "Manage game flags (variables)",
+                    Panel::Messages => "Edit in-game text messages",
+                    Panel::Preview => "Test and playthrough your game",
+                    Panel::Export => "Export your game to different formats",
+                    _ => "Select panel",
+                };
+
                 parent
                     .spawn((
                         ButtonBundle {
@@ -68,6 +81,7 @@ pub fn render_toolbar(
                             ..default()
                         },
                         PanelButton { panel },
+                        Tooltip::new(tooltip_text),
                     ))
                     .with_children(|parent| {
                         parent.spawn(TextBundle::from_section(
