@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAAD Adventure Creator Studio</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Top Menu Bar -->
+    <nav class="menu-bar">
+        <div class="menu-left">
+            <div class="logo">
+                <span class="logo-icon">🎮</span>
+                <span class="logo-text">DAAD Adventure Creator</span>
+            </div>
+            <div class="menu-items">
+                <div class="menu-item" data-menu="file">
+                    File
+                    <div class="dropdown">
+                        <button onclick="newGame()">New Game</button>
+                        <button onclick="openGame()">Open...</button>
+                        <button onclick="saveGame()">Save</button>
+                        <button onclick="saveGameAs()">Save As...</button>
+                        <hr>
+                        <button onclick="exportDaad()">Export DAAD Code</button>
+                    </div>
+                </div>
+                <div class="menu-item" data-menu="edit">
+                    Edit
+                    <div class="dropdown">
+                        <button onclick="undo()">Undo</button>
+                        <button onclick="redo()">Redo</button>
+                    </div>
+                </div>
+                <div class="menu-item" data-menu="view">
+                    View
+                    <div class="dropdown">
+                        <button onclick="toggleCodeView()">Toggle Code View</button>
+                        <button onclick="toggleMinimap()">Toggle Minimap</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="menu-right">
+            <button class="btn-preview" onclick="togglePreview()">
+                <span>▶</span> Preview
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Toolbar -->
+    <div class="toolbar">
+        <div class="tool-group">
+            <button class="tool-btn active" data-tool="select" title="Select (V)">
+                <span>↖</span>
+            </button>
+            <button class="tool-btn" data-tool="pan" title="Pan (H)">
+                <span>✋</span>
+            </button>
+            <button class="tool-btn" data-tool="zoom" title="Zoom">
+                <span>🔍</span>
+            </button>
+        </div>
+        <div class="tool-separator"></div>
+        <div class="tool-group">
+            <button class="tool-btn" data-tool="location" title="Add Location">
+                <span>🏠</span>
+            </button>
+            <button class="tool-btn" data-tool="connection" title="Add Connection">
+                <span>↔</span>
+            </button>
+            <button class="tool-btn" data-tool="object" title="Add Object">
+                <span>📦</span>
+            </button>
+        </div>
+        <div class="tool-separator"></div>
+        <div class="zoom-controls">
+            <button onclick="zoomOut()">−</button>
+            <span id="zoomLevel">100%</span>
+            <button onclick="zoomIn()">+</button>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+        <!-- Left Sidebar - Toolbox -->
+        <aside class="sidebar left-sidebar">
+            <div class="sidebar-header">
+                <h3>Game Elements</h3>
+            </div>
+
+            <div class="accordion">
+                <div class="accordion-item active">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <span>🏠 Locations</span>
+                        <span class="count" id="locationCount">0</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div id="locationList" class="element-list"></div>
+                        <button class="btn-add" onclick="addLocation()">+ Add Location</button>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <span>📦 Objects</span>
+                        <span class="count" id="objectCount">0</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div id="objectList" class="element-list"></div>
+                        <button class="btn-add" onclick="addObject()">+ Add Object</button>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <span>⚙️ Rules</span>
+                        <span class="count" id="ruleCount">0</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div id="ruleList" class="element-list"></div>
+                        <button class="btn-add" onclick="addRule()">+ Add Rule</button>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <span>🚩 Flags</span>
+                        <span class="count" id="flagCount">0</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div id="flagList" class="element-list"></div>
+                        <button class="btn-add" onclick="addFlag()">+ Add Flag</button>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                        <span>💬 Messages</span>
+                        <span class="count" id="messageCount">0</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div id="messageList" class="element-list"></div>
+                        <button class="btn-add" onclick="addMessage()">+ Add Message</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Canvas Area -->
+        <main class="canvas-container">
+            <div class="canvas" id="canvas">
+                <svg id="connectionsSvg" class="connections-layer"></svg>
+                <div id="nodesContainer" class="nodes-layer"></div>
+            </div>
+
+            <!-- Minimap -->
+            <div class="minimap" id="minimap">
+                <div class="minimap-viewport"></div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar - Properties -->
+        <aside class="sidebar right-sidebar">
+            <div class="sidebar-header">
+                <h3>Properties</h3>
+            </div>
+
+            <div id="propertiesPanel" class="properties-content">
+                <div class="empty-state">
+                    <p>Select an element to edit its properties</p>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Code View Panel (hidden by default) -->
+    <div class="code-panel" id="codePanel">
+        <div class="code-header">
+            <h3>DAAD Source Code</h3>
+            <button onclick="toggleCodeView()">×</button>
+        </div>
+        <pre id="codeOutput"></pre>
+    </div>
+
+    <!-- Status Bar -->
+    <footer class="status-bar">
+        <div class="status-left">
+            <span id="statusMessage">Ready</span>
+        </div>
+        <div class="status-right">
+            <span id="gameTitle">Untitled</span>
+            <span class="separator">|</span>
+            <span id="elementStats">0 locations, 0 objects, 0 rules</span>
+        </div>
+    </footer>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">Modal</h3>
+                <button onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer" id="modalFooter"></div>
+        </div>
+    </div>
+
+    <!-- Preview Panel -->
+    <div class="preview-panel" id="previewPanel">
+        <div class="preview-header">
+            <h3>Game Preview</h3>
+            <button onclick="togglePreview()">×</button>
+        </div>
+        <div class="preview-content">
+            <div class="preview-output" id="previewOutput">
+                <p class="location-title">Start Room</p>
+                <p class="location-desc">You are in a small room. There is a door to the north.</p>
+            </div>
+            <div class="preview-input">
+                <input type="text" id="previewInput" placeholder="Enter command...">
+                <button onclick="executeCommand()">Go</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
