@@ -3739,3 +3739,1004 @@ impl GameValidator {
         }
     }
 }
+
+// ============================================================================
+// Picture Editor Modal
+// ============================================================================
+
+#[derive(Component)]
+pub struct PictureEditorModal;
+
+#[derive(Resource)]
+pub struct PictureEditorModalState {
+    pub is_open: bool,
+    pub picture_id: u8,
+    pub name: String,
+    pub description: String,
+    pub web_file: String,
+    pub location_binding: Option<u8>,
+    pub width: String,
+    pub height: String,
+}
+
+impl Default for PictureEditorModalState {
+    fn default() -> Self {
+        Self {
+            is_open: false,
+            picture_id: 0,
+            name: String::new(),
+            description: String::new(),
+            web_file: String::new(),
+            location_binding: None,
+            width: String::from("320"),
+            height: String::from("200"),
+        }
+    }
+}
+
+impl PictureEditorModalState {
+    pub fn open(&mut self, picture: &crate::daad::game::Picture) {
+        self.is_open = true;
+        self.picture_id = picture.id;
+        self.name = picture.name.clone();
+        self.description = picture.description.clone();
+        self.web_file = picture.web_file.clone().unwrap_or_default();
+        self.location_binding = picture.location_binding;
+        if let Some((w, h)) = picture.dimensions {
+            self.width = w.to_string();
+            self.height = h.to_string();
+        }
+    }
+
+    pub fn close(&mut self) {
+        self.is_open = false;
+    }
+}
+
+#[derive(Component)]
+pub struct PictureNameInputButton;
+
+#[derive(Component)]
+pub struct PictureDescriptionInputButton;
+
+#[derive(Component)]
+pub struct PictureWebFileInputButton;
+
+#[derive(Component)]
+pub struct PictureWidthInputButton;
+
+#[derive(Component)]
+pub struct PictureHeightInputButton;
+
+#[derive(Component)]
+pub struct PictureLocationBindingButton;
+
+#[derive(Component)]
+pub struct PictureRemoveLocationBindingButton;
+
+#[derive(Component)]
+pub struct SavePictureButton;
+
+#[derive(Component)]
+pub struct CancelPictureEditButton;
+
+pub fn render_picture_editor_modal(
+    mut commands: Commands,
+    modal_state: Res<PictureEditorModalState>,
+    state: Res<crate::builder::state::BuilderState>,
+    query: Query<Entity, With<PictureEditorModal>>,
+) {
+    if !modal_state.is_open {
+        // Close any existing modals
+        for entity in query.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+        return;
+    }
+
+    // Don't re-render if already exists
+    if !query.is_empty() {
+        return;
+    }
+
+    // Find location name if bound
+    let location_name = if let Some(loc_id) = modal_state.location_binding {
+        state.current_game.locations
+            .iter()
+            .find(|l| l.id == loc_id)
+            .map(|l| l.name.clone())
+            .unwrap_or_else(|| format!("Location {}", loc_id))
+    } else {
+        String::new()
+    };
+
+    // Create modal backdrop
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                background_color: Color::rgba(0.0, 0.0, 0.0, 0.7).into(),
+                z_index: ZIndex::Global(100),
+                ..default()
+            },
+            ModalBackdrop,
+            PictureEditorModal,
+        ))
+        .with_children(|backdrop| {
+            // Modal container
+            backdrop
+                .spawn(NodeBundle {
+                    style: Style {
+                        flex_direction: FlexDirection::Column,
+                        padding: UiRect::all(Val::Px(25.0)),
+                        row_gap: Val::Px(15.0),
+                        width: Val::Px(600.0),
+                        max_height: Val::Percent(80.0),
+                        border: UiRect::all(Val::Px(3.0)),
+                        overflow: Overflow::clip_y(),
+                        ..default()
+                    },
+                    background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                    border_color: Color::rgb(0.4, 0.6, 0.8).into(),
+                    ..default()
+                })
+                .with_children(|modal| {
+                    // Title
+                    modal.spawn(TextBundle::from_section(
+                        format!("🖼️ Edit Picture #{}", modal_state.picture_id),
+                        TextStyle {
+                            font_size: 22.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    ));
+
+                    // Name input
+                    modal.spawn(TextBundle::from_section(
+                        "Picture Name:",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::rgb(0.8, 0.8, 0.8),
+                            ..default()
+                        },
+                    ));
+
+                    modal
+                        .spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    padding: UiRect::all(Val::Px(10.0)),
+                                    width: Val::Percent(100.0),
+                                    justify_content: JustifyContent::FlexStart,
+                                    border: UiRect::all(Val::Px(2.0)),
+                                    ..default()
+                                },
+                                background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                                border_color: Color::rgb(0.4, 0.5, 0.6).into(),
+                                ..default()
+                            },
+                            PictureNameInputButton,
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn(TextBundle::from_section(
+                                if modal_state.name.is_empty() {
+                                    "Click to enter name..."
+                                } else {
+                                    &modal_state.name
+                                },
+                                TextStyle {
+                                    font_size: 14.0,
+                                    color: if modal_state.name.is_empty() {
+                                        Color::rgb(0.5, 0.5, 0.5)
+                                    } else {
+                                        Color::rgb(0.9, 0.9, 0.9)
+                                    },
+                                    ..default()
+                                },
+                            ));
+                        });
+
+                    // Description input
+                    modal.spawn(TextBundle::from_section(
+                        "Description:",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::rgb(0.8, 0.8, 0.8),
+                            ..default()
+                        },
+                    ));
+
+                    modal
+                        .spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    padding: UiRect::all(Val::Px(10.0)),
+                                    width: Val::Percent(100.0),
+                                    min_height: Val::Px(60.0),
+                                    justify_content: JustifyContent::FlexStart,
+                                    align_items: AlignItems::FlexStart,
+                                    border: UiRect::all(Val::Px(2.0)),
+                                    ..default()
+                                },
+                                background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                                border_color: Color::rgb(0.4, 0.5, 0.6).into(),
+                                ..default()
+                            },
+                            PictureDescriptionInputButton,
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn(TextBundle::from_section(
+                                if modal_state.description.is_empty() {
+                                    "Click to enter description..."
+                                } else {
+                                    &modal_state.description
+                                },
+                                TextStyle {
+                                    font_size: 14.0,
+                                    color: if modal_state.description.is_empty() {
+                                        Color::rgb(0.5, 0.5, 0.5)
+                                    } else {
+                                        Color::rgb(0.9, 0.9, 0.9)
+                                    },
+                                    ..default()
+                                },
+                            ));
+                        });
+
+                    // Web file path input
+                    modal.spawn(TextBundle::from_section(
+                        "Web File Path (PNG/JPG/GIF):",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::rgb(0.8, 0.8, 0.8),
+                            ..default()
+                        },
+                    ));
+
+                    modal
+                        .spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    padding: UiRect::all(Val::Px(10.0)),
+                                    width: Val::Percent(100.0),
+                                    justify_content: JustifyContent::FlexStart,
+                                    border: UiRect::all(Val::Px(2.0)),
+                                    ..default()
+                                },
+                                background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                                border_color: Color::rgb(0.4, 0.5, 0.6).into(),
+                                ..default()
+                            },
+                            PictureWebFileInputButton,
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn(TextBundle::from_section(
+                                if modal_state.web_file.is_empty() {
+                                    "Click to enter file path (e.g., assets/images/picture.png)..."
+                                } else {
+                                    &modal_state.web_file
+                                },
+                                TextStyle {
+                                    font_size: 14.0,
+                                    color: if modal_state.web_file.is_empty() {
+                                        Color::rgb(0.5, 0.5, 0.5)
+                                    } else {
+                                        Color::rgb(0.9, 0.9, 0.9)
+                                    },
+                                    ..default()
+                                },
+                            ));
+                        });
+
+                    // Dimensions row
+                    modal.spawn(TextBundle::from_section(
+                        "Dimensions (Width × Height):",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::rgb(0.8, 0.8, 0.8),
+                            ..default()
+                        },
+                    ));
+
+                    modal
+                        .spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(10.0),
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|row| {
+                            // Width input
+                            row.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::all(Val::Px(10.0)),
+                                        width: Val::Px(120.0),
+                                        justify_content: JustifyContent::Center,
+                                        border: UiRect::all(Val::Px(2.0)),
+                                        ..default()
+                                    },
+                                    background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                                    border_color: Color::rgb(0.4, 0.5, 0.6).into(),
+                                    ..default()
+                                },
+                                PictureWidthInputButton,
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    &modal_state.width,
+                                    TextStyle {
+                                        font_size: 14.0,
+                                        color: Color::rgb(0.9, 0.9, 0.9),
+                                        ..default()
+                                    },
+                                ));
+                            });
+
+                            row.spawn(TextBundle::from_section(
+                                "×",
+                                TextStyle {
+                                    font_size: 16.0,
+                                    color: Color::rgb(0.7, 0.7, 0.7),
+                                    ..default()
+                                },
+                            ));
+
+                            // Height input
+                            row.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::all(Val::Px(10.0)),
+                                        width: Val::Px(120.0),
+                                        justify_content: JustifyContent::Center,
+                                        border: UiRect::all(Val::Px(2.0)),
+                                        ..default()
+                                    },
+                                    background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                                    border_color: Color::rgb(0.4, 0.5, 0.6).into(),
+                                    ..default()
+                                },
+                                PictureHeightInputButton,
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    &modal_state.height,
+                                    TextStyle {
+                                        font_size: 14.0,
+                                        color: Color::rgb(0.9, 0.9, 0.9),
+                                        ..default()
+                                    },
+                                ));
+                            });
+
+                            row.spawn(TextBundle::from_section(
+                                "pixels",
+                                TextStyle {
+                                    font_size: 12.0,
+                                    color: Color::rgb(0.6, 0.6, 0.7),
+                                    ..default()
+                                },
+                            ));
+                        });
+
+                    // Location binding section
+                    modal.spawn(TextBundle::from_section(
+                        "Location Binding:",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::rgb(0.8, 0.8, 0.8),
+                            ..default()
+                        },
+                    ));
+
+                    if let Some(loc_id) = modal_state.location_binding {
+                        // Show current binding with remove button
+                        modal
+                            .spawn(NodeBundle {
+                                style: Style {
+                                    flex_direction: FlexDirection::Row,
+                                    column_gap: Val::Px(10.0),
+                                    align_items: AlignItems::Center,
+                                    padding: UiRect::all(Val::Px(12.0)),
+                                    border: UiRect::all(Val::Px(2.0)),
+                                    ..default()
+                                },
+                                background_color: Color::rgba(0.2, 0.4, 0.3, 0.6).into(),
+                                border_color: Color::rgb(0.3, 0.6, 0.4).into(),
+                                ..default()
+                            })
+                            .with_children(|binding_row| {
+                                binding_row.spawn(TextBundle::from_section(
+                                    format!("📍 [{}] {}", loc_id, location_name),
+                                    TextStyle {
+                                        font_size: 14.0,
+                                        color: Color::rgb(0.7, 0.9, 0.7),
+                                        ..default()
+                                    },
+                                ));
+
+                                // Change button
+                                binding_row.spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            padding: UiRect::axes(Val::Px(12.0), Val::Px(8.0)),
+                                            ..default()
+                                        },
+                                        background_color: Color::rgb(0.4, 0.5, 0.7).into(),
+                                        ..default()
+                                    },
+                                    PictureLocationBindingButton,
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn(TextBundle::from_section(
+                                        "Change",
+                                        TextStyle {
+                                            font_size: 13.0,
+                                            color: Color::WHITE,
+                                            ..default()
+                                        },
+                                    ));
+                                });
+
+                                // Remove binding button
+                                binding_row.spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            padding: UiRect::axes(Val::Px(12.0), Val::Px(8.0)),
+                                            ..default()
+                                        },
+                                        background_color: Color::rgb(0.6, 0.3, 0.3).into(),
+                                        ..default()
+                                    },
+                                    PictureRemoveLocationBindingButton,
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn(TextBundle::from_section(
+                                        "Remove",
+                                        TextStyle {
+                                            font_size: 13.0,
+                                            color: Color::WHITE,
+                                            ..default()
+                                        },
+                                    ));
+                                });
+                            });
+                    } else {
+                        // No binding - show set button
+                        modal.spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    padding: UiRect::all(Val::Px(12.0)),
+                                    width: Val::Percent(100.0),
+                                    justify_content: JustifyContent::Center,
+                                    border: UiRect::all(Val::Px(2.0)),
+                                    ..default()
+                                },
+                                background_color: Color::rgb(0.3, 0.5, 0.4).into(),
+                                border_color: Color::rgb(0.4, 0.6, 0.5).into(),
+                                ..default()
+                            },
+                            PictureLocationBindingButton,
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn(TextBundle::from_section(
+                                "📍 Set Location Binding",
+                                TextStyle {
+                                    font_size: 14.0,
+                                    color: Color::WHITE,
+                                    ..default()
+                                },
+                            ));
+                        });
+                    }
+
+                    // Info text
+                    modal
+                        .spawn(NodeBundle {
+                            style: Style {
+                                padding: UiRect::all(Val::Px(12.0)),
+                                ..default()
+                            },
+                            background_color: Color::rgba(0.2, 0.3, 0.4, 0.5).into(),
+                            ..default()
+                        })
+                        .with_children(|info| {
+                            info.spawn(TextBundle::from_section(
+                                "💡 Pictures with location binding display automatically when the player enters that location.\n\
+                                Pictures without binding can be shown manually via Picture action in rules.",
+                                TextStyle {
+                                    font_size: 12.0,
+                                    color: Color::rgb(0.7, 0.75, 0.8),
+                                    ..default()
+                                },
+                            ));
+                        });
+
+                    // Action buttons
+                    modal
+                        .spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Row,
+                                justify_content: JustifyContent::FlexEnd,
+                                column_gap: Val::Px(10.0),
+                                margin: UiRect::top(Val::Px(10.0)),
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|buttons| {
+                            // Cancel button
+                            buttons.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
+                                        ..default()
+                                    },
+                                    background_color: Color::rgb(0.4, 0.4, 0.5).into(),
+                                    ..default()
+                                },
+                                CancelPictureEditButton,
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    "Cancel",
+                                    TextStyle {
+                                        font_size: 16.0,
+                                        color: Color::WHITE,
+                                        ..default()
+                                    },
+                                ));
+                            });
+
+                            // Save button
+                            buttons.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
+                                        ..default()
+                                    },
+                                    background_color: Color::rgb(0.3, 0.6, 0.4).into(),
+                                    ..default()
+                                },
+                                SavePictureButton,
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    "💾 Save",
+                                    TextStyle {
+                                        font_size: 16.0,
+                                        color: Color::WHITE,
+                                        ..default()
+                                    },
+                                ));
+                            });
+                        });
+                });
+        });
+}
+
+// Picture editor modal handlers
+
+pub fn handle_picture_name_input(
+    modal_state: Res<PictureEditorModalState>,
+    mut text_input: ResMut<TextInputModalState>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<PictureNameInputButton>)>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            text_input.open_single_line(
+                "Enter Picture Name",
+                &modal_state.name,
+                "Picture name...",
+                "picture_name",
+            );
+        }
+    }
+}
+
+pub fn handle_picture_description_input(
+    modal_state: Res<PictureEditorModalState>,
+    mut text_input: ResMut<TextInputModalState>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<PictureDescriptionInputButton>)>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            text_input.open_multiline(
+                "Enter Picture Description",
+                &modal_state.description,
+                "Picture description...",
+                "picture_description",
+            );
+        }
+    }
+}
+
+pub fn handle_picture_web_file_input(
+    modal_state: Res<PictureEditorModalState>,
+    mut text_input: ResMut<TextInputModalState>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<PictureWebFileInputButton>)>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            text_input.open_single_line(
+                "Enter Web File Path",
+                &modal_state.web_file,
+                "assets/images/picture.png",
+                "picture_web_file",
+            );
+        }
+    }
+}
+
+pub fn handle_picture_width_input(
+    modal_state: Res<PictureEditorModalState>,
+    mut text_input: ResMut<TextInputModalState>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<PictureWidthInputButton>)>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            text_input.open_single_line(
+                "Enter Picture Width (pixels)",
+                &modal_state.width,
+                "320",
+                "picture_width",
+            );
+        }
+    }
+}
+
+pub fn handle_picture_height_input(
+    modal_state: Res<PictureEditorModalState>,
+    mut text_input: ResMut<TextInputModalState>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<PictureHeightInputButton>)>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            text_input.open_single_line(
+                "Enter Picture Height (pixels)",
+                &modal_state.height,
+                "200",
+                "picture_height",
+            );
+        }
+    }
+}
+
+pub fn handle_picture_location_binding_button(
+    mut location_picker: ResMut<LocationPickerModalState>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<PictureLocationBindingButton>)>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            location_picker.open(LocationPickerContext::PictureBinding);
+        }
+    }
+}
+
+pub fn handle_picture_remove_location_binding(
+    mut modal_state: ResMut<PictureEditorModalState>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<PictureRemoveLocationBindingButton>)>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            modal_state.location_binding = None;
+        }
+    }
+}
+
+pub fn handle_save_picture_button(
+    mut state: ResMut<crate::builder::state::BuilderState>,
+    mut modal_state: ResMut<PictureEditorModalState>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<SavePictureButton>)>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            if let Some(picture) = state.current_game.pictures.iter_mut().find(|p| p.id == modal_state.picture_id) {
+                picture.name = modal_state.name.clone();
+                picture.description = modal_state.description.clone();
+                picture.web_file = if modal_state.web_file.is_empty() {
+                    None
+                } else {
+                    Some(modal_state.web_file.clone())
+                };
+                picture.location_binding = modal_state.location_binding;
+
+                // Parse dimensions
+                if let (Ok(width), Ok(height)) = (modal_state.width.parse::<u32>(), modal_state.height.parse::<u32>()) {
+                    picture.dimensions = Some((width, height));
+                }
+
+                state.mark_dirty();
+                info!("Saved picture ID {}", modal_state.picture_id);
+            }
+            modal_state.close();
+        }
+    }
+}
+
+pub fn handle_cancel_picture_edit_button(
+    mut modal_state: ResMut<PictureEditorModalState>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<CancelPictureEditButton>)>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            modal_state.close();
+        }
+    }
+}
+
+// ============================================================================
+// Location Picker Modal
+// ============================================================================
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LocationPickerContext {
+    PictureBinding,
+    ConnectionTarget,
+    ObjectLocation,
+}
+
+#[derive(Component)]
+pub struct LocationPickerModal;
+
+#[derive(Resource)]
+pub struct LocationPickerModalState {
+    pub is_open: bool,
+    pub context: LocationPickerContext,
+    pub selected_location: Option<u8>,
+}
+
+impl Default for LocationPickerModalState {
+    fn default() -> Self {
+        Self {
+            is_open: false,
+            context: LocationPickerContext::PictureBinding,
+            selected_location: None,
+        }
+    }
+}
+
+impl LocationPickerModalState {
+    pub fn open(&mut self, context: LocationPickerContext) {
+        self.is_open = true;
+        self.context = context;
+        self.selected_location = None;
+    }
+
+    pub fn close(&mut self) {
+        self.is_open = false;
+    }
+}
+
+#[derive(Component)]
+pub struct LocationPickerButton {
+    pub location_id: u8,
+}
+
+#[derive(Component)]
+pub struct CancelLocationPickerButton;
+
+pub fn render_location_picker_modal(
+    mut commands: Commands,
+    modal_state: Res<LocationPickerModalState>,
+    state: Res<crate::builder::state::BuilderState>,
+    query: Query<Entity, With<LocationPickerModal>>,
+) {
+    if !modal_state.is_open {
+        // Close any existing modals
+        for entity in query.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+        return;
+    }
+
+    // Don't re-render if already exists
+    if !query.is_empty() {
+        return;
+    }
+
+    let title = match modal_state.context {
+        LocationPickerContext::PictureBinding => "📍 Select Location for Picture",
+        LocationPickerContext::ConnectionTarget => "📍 Select Target Location",
+        LocationPickerContext::ObjectLocation => "📍 Select Object Location",
+    };
+
+    // Create modal backdrop
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                background_color: Color::rgba(0.0, 0.0, 0.0, 0.7).into(),
+                z_index: ZIndex::Global(150),
+                ..default()
+            },
+            ModalBackdrop,
+            LocationPickerModal,
+        ))
+        .with_children(|backdrop| {
+            // Modal container
+            backdrop
+                .spawn(NodeBundle {
+                    style: Style {
+                        flex_direction: FlexDirection::Column,
+                        padding: UiRect::all(Val::Px(25.0)),
+                        row_gap: Val::Px(15.0),
+                        width: Val::Px(500.0),
+                        max_height: Val::Percent(70.0),
+                        border: UiRect::all(Val::Px(3.0)),
+                        overflow: Overflow::clip_y(),
+                        ..default()
+                    },
+                    background_color: Color::rgb(0.15, 0.15, 0.2).into(),
+                    border_color: Color::rgb(0.5, 0.7, 0.9).into(),
+                    ..default()
+                })
+                .with_children(|modal| {
+                    // Title
+                    modal.spawn(TextBundle::from_section(
+                        title,
+                        TextStyle {
+                            font_size: 20.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    ));
+
+                    // Location count
+                    modal.spawn(TextBundle::from_section(
+                        format!("{} locations available", state.current_game.locations.len()),
+                        TextStyle {
+                            font_size: 13.0,
+                            color: Color::rgb(0.6, 0.6, 0.7),
+                            ..default()
+                        },
+                    ));
+
+                    // Scrollable location list
+                    modal
+                        .spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Column,
+                                row_gap: Val::Px(8.0),
+                                overflow: Overflow::clip_y(),
+                                max_height: Val::Px(400.0),
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|list| {
+                            for location in &state.current_game.locations {
+                                list.spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            padding: UiRect::all(Val::Px(12.0)),
+                                            width: Val::Percent(100.0),
+                                            justify_content: JustifyContent::FlexStart,
+                                            ..default()
+                                        },
+                                        background_color: Color::rgb(0.2, 0.25, 0.3).into(),
+                                        ..default()
+                                    },
+                                    LocationPickerButton {
+                                        location_id: location.id,
+                                    },
+                                ))
+                                .with_children(|btn| {
+                                    btn.spawn(TextBundle::from_section(
+                                        format!("[{}] {}", location.id, location.name),
+                                        TextStyle {
+                                            font_size: 14.0,
+                                            color: Color::rgb(0.9, 0.9, 1.0),
+                                            ..default()
+                                        },
+                                    ));
+                                });
+                            }
+                        });
+
+                    // Cancel button
+                    modal.spawn((
+                        ButtonBundle {
+                            style: Style {
+                                padding: UiRect::axes(Val::Px(20.0), Val::Px(10.0)),
+                                align_self: AlignSelf::FlexEnd,
+                                ..default()
+                            },
+                            background_color: Color::rgb(0.4, 0.4, 0.5).into(),
+                            ..default()
+                        },
+                        CancelLocationPickerButton,
+                    ))
+                    .with_children(|btn| {
+                        btn.spawn(TextBundle::from_section(
+                            "Cancel",
+                            TextStyle {
+                                font_size: 16.0,
+                                color: Color::WHITE,
+                                ..default()
+                            },
+                        ));
+                    });
+                });
+        });
+}
+
+pub fn handle_location_picker_button(
+    mut picture_modal: ResMut<PictureEditorModalState>,
+    mut picker_modal: ResMut<LocationPickerModalState>,
+    mut interaction_query: Query<(&Interaction, &LocationPickerButton), Changed<Interaction>>,
+) {
+    for (interaction, button) in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            match picker_modal.context {
+                LocationPickerContext::PictureBinding => {
+                    picture_modal.location_binding = Some(button.location_id);
+                }
+                LocationPickerContext::ConnectionTarget => {
+                    // Future: handle connection editor
+                    info!("Selected location {} for connection", button.location_id);
+                }
+                LocationPickerContext::ObjectLocation => {
+                    // Future: handle object editor
+                    info!("Selected location {} for object", button.location_id);
+                }
+            }
+            picker_modal.close();
+        }
+    }
+}
+
+pub fn handle_cancel_location_picker(
+    mut picker_modal: ResMut<LocationPickerModalState>,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<CancelLocationPickerButton>)>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            picker_modal.close();
+        }
+    }
+}
+
+// Process text input callbacks for picture editor
+pub fn process_picture_text_input(
+    mut picture_modal: ResMut<PictureEditorModalState>,
+    text_input: Res<TextInputModalState>,
+) {
+    if !text_input.is_open && text_input.callback_id.is_some() {
+        match text_input.callback_id.as_deref() {
+            Some("picture_name") => {
+                picture_modal.name = text_input.current_value.clone();
+            }
+            Some("picture_description") => {
+                picture_modal.description = text_input.current_value.clone();
+            }
+            Some("picture_web_file") => {
+                picture_modal.web_file = text_input.current_value.clone();
+            }
+            Some("picture_width") => {
+                picture_modal.width = text_input.current_value.clone();
+            }
+            Some("picture_height") => {
+                picture_modal.height = text_input.current_value.clone();
+            }
+            _ => {}
+        }
+    }
+}

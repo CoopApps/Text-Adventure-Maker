@@ -497,12 +497,16 @@ pub fn handle_remove_picture_button(
 
 /// Handle edit picture button click
 pub fn handle_edit_picture_button(
+    state: Res<BuilderState>,
+    mut picture_editor: ResMut<crate::builder::ui::components::PictureEditorModalState>,
     mut interaction_query: Query<(&Interaction, &EditPictureButton), Changed<Interaction>>,
 ) {
     for (interaction, button) in interaction_query.iter() {
         if *interaction == Interaction::Pressed {
-            info!("Edit Picture button clicked for ID {} - edit dialog coming soon!", button.picture_id);
-            // TODO: Open picture edit dialog with image upload/crop
+            if let Some(picture) = state.current_game.pictures.iter().find(|p| p.id == button.picture_id) {
+                picture_editor.open(picture);
+                info!("Opened picture editor for ID {}", button.picture_id);
+            }
         }
     }
 }

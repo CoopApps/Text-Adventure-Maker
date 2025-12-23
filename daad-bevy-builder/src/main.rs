@@ -25,6 +25,8 @@ fn main() {
         .init_resource::<builder::ui::components::ConfirmationModalState>()
         .init_resource::<builder::ui::components::ConnectionEditorModalState>()
         .init_resource::<builder::ui::components::LocationEditorModalState>()
+        .init_resource::<builder::ui::components::PictureEditorModalState>()
+        .init_resource::<builder::ui::components::LocationPickerModalState>()
         .init_resource::<builder::ui::components::TooltipState>()
         .init_resource::<builder::ui::components::NotificationManager>()
         .init_resource::<builder::ui::components::UndoRedoManager>()
@@ -142,6 +144,23 @@ fn main() {
             builder::ui::condition_action_modals::handle_action_param_buttons,
             builder::ui::condition_action_modals::handle_save_condition_button,
             builder::ui::condition_action_modals::handle_save_action_button,
+        ))
+        .add_systems(Update, (
+            // Picture editor modal and location picker modal
+            builder::ui::components::render_picture_editor_modal,
+            builder::ui::components::handle_picture_name_input,
+            builder::ui::components::handle_picture_description_input,
+            builder::ui::components::handle_picture_web_file_input,
+            builder::ui::components::handle_picture_width_input,
+            builder::ui::components::handle_picture_height_input,
+            builder::ui::components::handle_picture_location_binding_button,
+            builder::ui::components::handle_picture_remove_location_binding,
+            builder::ui::components::handle_save_picture_button,
+            builder::ui::components::handle_cancel_picture_edit_button,
+            builder::ui::components::process_picture_text_input,
+            builder::ui::components::render_location_picker_modal,
+            builder::ui::components::handle_location_picker_button,
+            builder::ui::components::handle_cancel_location_picker,
         ))
         .add_systems(Update, (
             // Flags and messages editor systems
