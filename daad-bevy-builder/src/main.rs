@@ -33,6 +33,7 @@ fn main() {
         .init_resource::<builder::ui::components::UndoRedoManager>()
         .init_resource::<builder::ui::components::ClipboardManager>()
         .init_resource::<builder::ui::components::ValidationResults>()
+        .init_resource::<builder::ui::components::LoadingIndicator>()
         .init_resource::<builder::ui::vocabulary_ui::VocabularySearchState>()
         .init_resource::<builder::debug::DebugState>()
         .add_systems(Startup, setup)
@@ -51,6 +52,7 @@ fn main() {
             builder::ui::components::render_tooltip_display,
             builder::ui::components::update_notifications,
             builder::ui::components::render_notification_display,
+            builder::ui::components::render_loading_indicator,
         ))
         .add_systems(Update, (
             // Location editor systems
@@ -690,6 +692,7 @@ fn handle_keyboard_shortcuts(
     mut undo_manager: ResMut<builder::ui::components::UndoRedoManager>,
     mut clipboard_manager: ResMut<builder::ui::components::ClipboardManager>,
     mut validation_results: ResMut<builder::ui::components::ValidationResults>,
+    mut loading_indicator: ResMut<builder::ui::components::LoadingIndicator>,
     time: Res<Time>,
 ) {
     let current_time = time.elapsed_seconds_f64();
@@ -725,8 +728,14 @@ fn handle_keyboard_shortcuts(
     if keys.just_pressed(KeyCode::F6) {
         use builder::ui::components::GameValidator;
 
+        // Show loading indicator
+        loading_indicator.start("validation", "Running game validation...", current_time);
+
         // Run validation
         let results = GameValidator::validate(&state.current_game);
+
+        // Finish loading
+        loading_indicator.finish("validation");
 
         // Show notification with summary
         if results.has_errors() {
@@ -754,6 +763,9 @@ fn handle_keyboard_shortcuts(
 
     // Ctrl+S = Save project to JSON
     if keys.pressed(KeyCode::ControlLeft) && keys.just_pressed(KeyCode::S) {
+        // Show loading indicator
+        loading_indicator.start("save", "Saving project...", current_time);
+
         // Create exports directory if it doesn't exist
         let _ = std::fs::create_dir_all("./exports");
 
@@ -772,12 +784,14 @@ fn handle_keyboard_shortcuts(
                             format!("Project saved to {}", filepath),
                             current_time
                         );
+                        loading_indicator.finish("save");
                     }
                     Err(e) => {
                         notification_manager.add_error(
                             format!("Failed to write file: {}", e),
                             current_time
                         );
+                        loading_indicator.finish("save");
                     }
                 }
             }
@@ -786,6 +800,7 @@ fn handle_keyboard_shortcuts(
                     format!("Failed to serialize game: {}", e),
                     current_time
                 );
+                loading_indicator.finish("save");
             }
         }
     }

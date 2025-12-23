@@ -5419,3 +5419,153 @@ pub fn process_sound_text_input(
         }
     }
 }
+
+// ============================================================================
+// Loading Indicator System
+// ============================================================================
+
+#[derive(Debug, Clone)]
+pub struct LoadingOperation {
+    pub id: String,
+    pub message: String,
+    pub started_at: f64,
+}
+
+#[derive(Resource)]
+pub struct LoadingIndicator {
+    pub operations: Vec<LoadingOperation>,
+}
+
+impl Default for LoadingIndicator {
+    fn default() -> Self {
+        Self {
+            operations: Vec::new(),
+        }
+    }
+}
+
+impl LoadingIndicator {
+    pub fn start(&mut self, id: &str, message: &str, current_time: f64) {
+        // Remove any existing operation with same ID
+        self.operations.retain(|op| op.id != id);
+
+        self.operations.push(LoadingOperation {
+            id: id.to_string(),
+            message: message.to_string(),
+            started_at: current_time,
+        });
+    }
+
+    pub fn finish(&mut self, id: &str) {
+        self.operations.retain(|op| op.id != id);
+    }
+
+    pub fn is_loading(&self) -> bool {
+        !self.operations.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        self.operations.clear();
+    }
+}
+
+#[derive(Component)]
+pub struct LoadingIndicatorUI;
+
+/// Render loading indicator overlay
+pub fn render_loading_indicator(
+    mut commands: Commands,
+    loading: Res<LoadingIndicator>,
+    time: Res<Time>,
+    query: Query<Entity, With<LoadingIndicatorUI>>,
+) {
+    if !loading.is_loading() {
+        // Clean up when not loading
+        for entity in query.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+        return;
+    }
+
+    // Don't re-render if already exists and operations haven't changed
+    if !query.is_empty() {
+        return;
+    }
+
+    let current_time = time.elapsed_seconds_f64();
+
+    // Create loading overlay
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    right: Val::Px(20.0),
+                    bottom: Val::Px(80.0),
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(8.0),
+                    padding: UiRect::all(Val::Px(15.0)),
+                    border: UiRect::all(Val::Px(2.0)),
+                    ..default()
+                },
+                background_color: Color::rgba(0.15, 0.15, 0.2, 0.95).into(),
+                border_color: Color::rgb(0.4, 0.6, 0.9).into(),
+                z_index: ZIndex::Global(2000),
+                ..default()
+            },
+            LoadingIndicatorUI,
+        ))
+        .with_children(|parent| {
+            for operation in &loading.operations {
+                let elapsed = current_time - operation.started_at;
+
+                // Operation row
+                parent
+                    .spawn(NodeBundle {
+                        style: Style {
+                            flex_direction: FlexDirection::Row,
+                            align_items: AlignItems::Center,
+                            column_gap: Val::Px(10.0),
+                            ..default()
+                        },
+                        ..default()
+                    })
+                    .with_children(|row| {
+                        // Animated spinner
+                        let spinner_chars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+                        let spinner_index = (elapsed * 10.0) as usize % spinner_chars.len();
+
+                        row.spawn(TextBundle::from_section(
+                            format!("{}", spinner_chars[spinner_index]),
+                            TextStyle {
+                                font_size: 18.0,
+                                color: Color::rgb(0.4, 0.7, 1.0),
+                                ..default()
+                            },
+                        ));
+
+                        // Loading message
+                        row.spawn(TextBundle::from_section(
+                            &operation.message,
+                            TextStyle {
+                                font_size: 14.0,
+                                color: Color::rgb(0.8, 0.9, 1.0),
+                                ..default()
+                            },
+                        ));
+
+                        // Elapsed time
+                        if elapsed > 1.0 {
+                            row.spawn(TextBundle::from_section(
+                                format!("({:.1}s)", elapsed),
+                                TextStyle {
+                                    font_size: 12.0,
+                                    color: Color::rgb(0.6, 0.6, 0.7),
+                                    ..default()
+                                },
+                            ));
+                        }
+                    });
+            }
+        });
+}
