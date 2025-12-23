@@ -199,6 +199,8 @@ fn main() {
         .add_systems(Update, (
             // Export systems
             builder::ui::export_ui::render_export_panel,
+            builder::ui::export_ui::handle_import_daad_source_button,
+            builder::ui::export_ui::process_daad_import_text_input,
             builder::ui::export_ui::handle_save_json_button,
             builder::ui::export_ui::handle_load_recent_file_button,
             builder::ui::export_ui::handle_toggle_auto_save_button,

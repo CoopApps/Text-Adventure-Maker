@@ -79,6 +79,64 @@ pub fn render_export_panel(
                 ..default()
             });
 
+            // Import Section
+            parent.spawn(TextBundle::from_section(
+                "📥 Import from DAAD Source",
+                TextStyle {
+                    font_size: 18.0,
+                    color: Color::rgb(0.9, 0.9, 1.0),
+                    ..default()
+                },
+            ));
+
+            parent.spawn(TextBundle::from_section(
+                "Import an existing DAAD .SCE source file into the visual editor",
+                TextStyle {
+                    font_size: 12.0,
+                    color: Color::rgb(0.6, 0.6, 0.6),
+                    ..default()
+                },
+            ));
+
+            // Import button
+            parent
+                .spawn((
+                    ButtonBundle {
+                        style: Style {
+                            padding: UiRect::all(Val::Px(12.0)),
+                            margin: UiRect::vertical(Val::Px(8.0)),
+                            border: UiRect::all(Val::Px(2.0)),
+                            ..default()
+                        },
+                        background_color: Color::rgb(0.6, 0.4, 0.7).into(),
+                        border_color: Color::rgb(0.7, 0.5, 0.8).into(),
+                        ..default()
+                    },
+                    ImportDaadSourceButton,
+                ))
+                .with_children(|parent| {
+                    parent.spawn(TextBundle::from_section(
+                        "📥 IMPORT DAAD SOURCE (.SCE)",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    ));
+                });
+
+            // Separator
+            parent.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(2.0),
+                    margin: UiRect::vertical(Val::Px(15.0)),
+                    ..default()
+                },
+                background_color: Color::rgb(0.3, 0.3, 0.35).into(),
+                ..default()
+            });
+
             // JSON Save Section
             parent.spawn(TextBundle::from_section(
                 "📁 Save Project (JSON)",
@@ -803,6 +861,111 @@ pub fn handle_save_json_button(
     }
 }
 
+/// Handle import DAAD source button
+pub fn handle_import_daad_source_button(
+    mut text_input: ResMut<crate::builder::ui::components::TextInputModalState>,
+    mut notification_manager: ResMut<crate::builder::ui::components::NotificationManager>,
+    time: Res<Time>,
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<ImportDaadSourceButton>),
+    >,
+) {
+    for interaction in interaction_query.iter_mut() {
+        if *interaction == Interaction::Pressed {
+            // Open text input for file path
+            text_input.open_single_line(
+                "Import DAAD Source File",
+                "",
+                "./exports/game.sce",
+                "import_daad_source",
+            );
+
+            // Show informational notification
+            notification_manager.add_warning(
+                "ℹ️ DAAD import: Enter .SCE file path to import (parser in development)",
+                time.elapsed_seconds_f64(),
+            );
+
+            info!("Import DAAD source button clicked - opening file path dialog");
+        }
+    }
+}
+
+/// Process DAAD source import from text input
+pub fn process_daad_import_text_input(
+    mut state: ResMut<BuilderState>,
+    text_input: Res<crate::builder::ui::components::TextInputModalState>,
+    mut notification_manager: ResMut<crate::builder::ui::components::NotificationManager>,
+    time: Res<Time>,
+) {
+    // Check if text input was just closed with the import callback
+    if !text_input.is_open && text_input.callback_id.as_deref() == Some("import_daad_source") && !text_input.current_value.is_empty() {
+        let file_path = &text_input.current_value;
+
+        info!("Attempting to import DAAD source from: {}", file_path);
+
+        // Try to read the file
+        match fs::read_to_string(file_path) {
+            Ok(content) => {
+                // TODO: Implement full DAAD .SCE parser
+                // The parser would need to:
+                // 1. Parse /CTL section (control characters)
+                // 2. Parse /VOC section (vocabulary with word_id word_type)
+                // 3. Parse /STX section (system messages)
+                // 4. Parse /LTX section (location descriptions)
+                // 5. Parse /OTX section (object descriptions)
+                // 6. Parse /MTX section (user messages)
+                // 7. Parse /OBJ section (object definitions)
+                // 8. Parse /LOC section (location connections)
+                // 9. Parse /PRO section (process/rule tables)
+                //
+                // Format example:
+                // /VOC
+                // NORTH    1    _
+                // TAKE     10   verb
+                // ...
+                //
+                // For now, show a placeholder notification
+                notification_manager.add_error(
+                    &format!("❌ DAAD parser not yet implemented. File loaded: {} ({} bytes)",
+                        file_path, content.len()),
+                    time.elapsed_seconds_f64(),
+                );
+
+                // Log file info for development
+                info!("DAAD source file loaded: {} bytes", content.len());
+                info!("First 200 chars: {}", &content.chars().take(200).collect::<String>());
+
+                // When parser is implemented, it would look like:
+                // match DaadParser::parse(&content) {
+                //     Ok(game) => {
+                //         state.current_game = game;
+                //         state.mark_dirty();
+                //         notification_manager.add_success(
+                //             "✅ DAAD source imported successfully",
+                //             time.elapsed_seconds_f64(),
+                //         );
+                //     }
+                //     Err(e) => {
+                //         notification_manager.add_error(
+                //             &format!("❌ Parse error: {}", e),
+                //             time.elapsed_seconds_f64(),
+                //         );
+                //     }
+                // }
+            }
+            Err(e) => {
+                notification_manager.add_error(
+                    &format!("❌ Failed to read file: {}", e),
+                    time.elapsed_seconds_f64(),
+                );
+                error!("Failed to read DAAD source file: {}", e);
+            }
+        }
+    }
+}
+
 /// Handle load recent file button
 pub fn handle_load_recent_file_button(
     mut state: ResMut<BuilderState>,
@@ -1146,6 +1309,9 @@ fn open_in_browser(path: &PathBuf) -> Result<(), String> {
 // Components
 #[derive(Component)]
 pub(crate) struct ExportPanel;
+
+#[derive(Component)]
+pub(crate) struct ImportDaadSourceButton;
 
 #[derive(Component)]
 pub(crate) struct SaveJsonButton;
